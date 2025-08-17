@@ -204,6 +204,35 @@ export const fileStorage = {
     }
   },
 
+  // Save refined PRD content
+  saveRefinedPRDContent(projectId: string, content: string): void {
+    try {
+      const projectDir = getProjectDir(projectId);
+      if (!fs.existsSync(projectDir)) {
+        fs.mkdirSync(projectDir, { recursive: true });
+      }
+      
+      const refinedPrdFile = path.join(projectDir, 'prd-refined.md');
+      fs.writeFileSync(refinedPrdFile, content);
+    } catch (error) {
+      console.error('Error saving refined PRD content:', error);
+      throw error;
+    }
+  },
+
+  // Get refined PRD content
+  getRefinedPRDContent(projectId: string): string {
+    try {
+      const refinedPrdFile = path.join(getProjectDir(projectId), 'prd-refined.md');
+      if (!fs.existsSync(refinedPrdFile)) return '';
+      
+      return fs.readFileSync(refinedPrdFile, 'utf8');
+    } catch (error) {
+      console.error('Error reading refined PRD content:', error);
+      return '';
+    }
+  },
+
   // Generate unique project ID
   generateProjectId(): string {
     return `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;

@@ -7,9 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Edit, ArrowRight, Download, Save, X, Check, Sparkles, ArrowLeft } from "lucide-react";
+import { Edit, Download, Save, X, Check, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useProjectState } from "@/hooks/use-project-state";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface PRDPreviewClientProps {
   projectId: string;
@@ -29,10 +30,14 @@ export default function PRDPreviewClient({ projectId }: PRDPreviewClientProps) {
     updateMetadata
   } = useProjectState(projectId);
 
+  // All useState hooks must be called first
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
   const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
 
   // Generate comprehensive PRD content if none exists
@@ -119,8 +124,6 @@ ${data.additionalContext}
     }
   }, [searchParams, isEditing]);
 
-
-
   // Initialize edit content when entering edit mode
   useEffect(() => {
     if (isEditing && displayContent) {
@@ -136,6 +139,17 @@ ${data.additionalContext}
       setHasChanges(changed);
     }
   }, [editContent, displayContent, isEditing]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+      }
+    };
+  }, [autoSaveTimer]);
+
+
 
   // Auto-save functionality
   const autoSave = useCallback((content: string) => {
@@ -171,10 +185,11 @@ ${data.additionalContext}
         setAutoSaveTimer(null);
       }
       // Show success feedback
-      alert('PRD saved successfully!');
+      setShowSuccessDialog(true);
     } catch (error) {
       console.error('Error saving PRD:', error);
-      alert('Failed to save PRD. Please try again.');
+      setErrorMessage('Failed to save PRD. Please try again.');
+      setShowErrorDialog(true);
     }
   };
 
@@ -192,8 +207,6 @@ ${data.additionalContext}
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
-
-
 
   // Handle content change with auto-save
   const handleContentChange = (newContent: string) => {
@@ -213,14 +226,15 @@ ${data.additionalContext}
     }
   };
 
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      if (autoSaveTimer) {
-        clearTimeout(autoSaveTimer);
-      }
-    };
-  }, [autoSaveTimer]);
+
+
+  // Debug metadata state
+  console.log('PRD Preview - Metadata Debug:', {
+    projectId,
+    metadata,
+    refinementQuestionsGenerated: metadata?.refinementQuestionsGenerated,
+    refinementQuestionsGeneratedAt: metadata?.refinementQuestionsGeneratedAt
+  });
 
   // Loading state
   if (isLoading) {
@@ -246,14 +260,6 @@ ${data.additionalContext}
       </div>
     );
   }
-
-  // Debug metadata state
-  console.log('PRD Preview - Metadata Debug:', {
-    projectId,
-    metadata,
-    refinementQuestionsGenerated: metadata?.refinementQuestionsGenerated,
-    refinementQuestionsGeneratedAt: metadata?.refinementQuestionsGeneratedAt
-  });
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -282,7 +288,6 @@ ${data.additionalContext}
             <Download className="w-4 h-4" />
             Export PRD
           </Button>
-
         </div>
       </div>
 
@@ -343,16 +348,14 @@ ${data.additionalContext}
           ) : (
             <ScrollArea className="h-[600px] w-full">
               <div className="prose prose-sm max-w-none">
-                <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
-                  {displayContent}
-                </pre>
+                <pre className="whitespace-pre-wrap font-mono text-sm">{displayContent}</pre>
               </div>
             </ScrollArea>
           )}
         </CardContent>
       </Card>
 
-      
+
 
       {/* Actions */}
       <div className="flex items-center justify-between">
@@ -375,7 +378,18 @@ ${data.additionalContext}
           </Link>
 
           <div className="text-sm text-muted-foreground max-w-md">
-            {metadata?.refinementQuestionsGenerated ? (
+            {metadata?.status === 'complete' ? (
+              <div className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <p className="font-medium text-green-600">Refinement complete!</p>
+                  <p>Your PRD has been refined and enhanced based on the technical questions.</p>
+                  <Link href={`/projects/${project.id}/prd-refined`} className="text-blue-600 hover:underline text-sm">
+                    View Refined PRD →
+                  </Link>
+                </div>
+              </div>
+            ) : metadata?.refinementQuestionsGenerated ? (
               <div className="flex items-start gap-2">
                 <div className="w-1.5 h-1.5 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
                 <div>
@@ -398,6 +412,40 @@ ${data.additionalContext}
           </div>
         </div>
       </div>
+
+      {/* Success Dialog */}
+      <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Success!</DialogTitle>
+            <DialogDescription>
+              Your PRD has been saved successfully.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setShowSuccessDialog(false)}>
+              Continue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Error Dialog */}
+      <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Error</DialogTitle>
+            <DialogDescription>
+              {errorMessage}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setShowErrorDialog(false)}>
+              OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

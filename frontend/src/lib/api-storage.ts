@@ -233,6 +233,65 @@ export const apiStorage = {
     }
   },
 
+  // Get refined PRD content
+  async getRefinedPRDContent(projectId: string): Promise<string> {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/prd-refined`);
+      if (!response.ok) {
+        return '';
+      }
+      const data = await response.json();
+      return data.content || '';
+    } catch (error) {
+      console.error('Error fetching refined PRD content:', error);
+      return '';
+    }
+  },
+
+  // Save refined PRD content
+  async saveRefinedPRDContent(projectId: string, content: string): Promise<void> {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/prd-refined`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save refined PRD content');
+      }
+    } catch (error) {
+      console.error('Error saving refined PRD content:', error);
+      throw error;
+    }
+  },
+
+  // Process refinement and generate refined PRD
+  async processRefinement(projectId: string): Promise<string> {
+    try {
+      const response = await fetch('/api/llm/process-refinement', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ projectId }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to process refinement');
+      }
+
+      const data = await response.json();
+      return data.refinedPRD || '';
+    } catch (error) {
+      console.error('Error processing refinement:', error);
+      throw error;
+    }
+  },
+
   // Generate unique project ID (client-side for immediate use)
   generateProjectId(): string {
     return `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;

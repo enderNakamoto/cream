@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useProjectState } from "@/hooks/use-project-state";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { apiStorage } from "@/lib/api-storage";
 
 interface RefinementQuestionsClientProps {
   projectId: string;
@@ -17,17 +19,22 @@ export default function RefinementQuestionsClient({ projectId }: RefinementQuest
   const { 
     project, 
     metadata, 
-    isLoading, 
+    isLoading,
     updateMetadata
   } = useProjectState(projectId);
 
+  // All useState hooks must be called first
+  const [isRefining, setIsRefining] = useState(false);
   const [refinementQuestions, setRefinementQuestions] = useState<any[]>([]);
   const [refinementAnswers, setRefinementAnswers] = useState<Record<number, string>>({});
   const [refinementSkipped, setRefinementSkipped] = useState<Record<number, boolean>>({});
   const [refinementStep, setRefinementStep] = useState(1);
   const [isSavingRefinements, setIsSavingRefinements] = useState(false);
-  const [isRefining, setIsRefining] = useState(false);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Load existing refinement questions and answers if they exist
   useEffect(() => {
@@ -69,6 +76,49 @@ export default function RefinementQuestionsClient({ projectId }: RefinementQuest
 
     loadRefinementData();
   }, [project, metadata]);
+
+  // Auto-save answers when they change
+  const autoSaveAnswers = useCallback(async () => {
+    if (!project || refinementQuestions.length === 0) return;
+    
+    setIsAutoSaving(true);
+    try {
+      const answers = refinementQuestions.map(question => ({
+        questionId: question.id,
+        question: question.question,
+        answer: refinementAnswers[question.id] || '',
+        skipped: refinementSkipped[question.id] || false,
+        timestamp: new Date().toISOString()
+      }));
+
+      const response = await fetch(`/api/projects/${project.id}/refinements`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers })
+      });
+
+      if (!response.ok) {
+        console.error('Auto-save failed');
+      } else {
+        console.log('Answers auto-saved successfully');
+      }
+    } catch (error) {
+      console.error('Auto-save error:', error);
+    } finally {
+      setIsAutoSaving(false);
+    }
+  }, [project, refinementQuestions, refinementAnswers, refinementSkipped]);
+
+  // Auto-save when answers change (debounced)
+  useEffect(() => {
+    if (refinementQuestions.length > 0) {
+      const timer = setTimeout(() => {
+        autoSaveAnswers();
+      }, 2000); // Auto-save after 2 seconds of inactivity
+
+      return () => clearTimeout(timer);
+    }
+  }, [refinementAnswers, refinementSkipped, autoSaveAnswers]);
 
   // Handle PRD refinement
   const handleRefinePRD = async () => {
@@ -136,54 +186,12 @@ export default function RefinementQuestionsClient({ projectId }: RefinementQuest
       });
     } catch (error) {
       console.error('Refinement error:', error);
-      alert('Failed to generate refinement questions: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      setErrorMessage('Failed to generate refinement questions: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      setShowErrorDialog(true);
     } finally {
       setIsRefining(false);
     }
   };
-
-  // Auto-save answers when they change
-  const autoSaveAnswers = useCallback(async () => {
-    if (!project || refinementQuestions.length === 0) return;
-    
-    setIsAutoSaving(true);
-    try {
-      const answers = refinementQuestions.map(question => ({
-        questionId: question.id,
-        question: question.question,
-        answer: refinementAnswers[question.id] || '',
-        skipped: refinementSkipped[question.id] || false,
-        timestamp: new Date().toISOString()
-      }));
-
-      const response = await fetch(`/api/projects/${project.id}/refinements`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers })
-      });
-
-      if (!response.ok) {
-        console.error('Auto-save failed');
-      } else {
-        console.log('Answers auto-saved successfully');
-      }
-    } catch (error) {
-      console.error('Auto-save error:', error);
-    } finally {
-      setIsAutoSaving(false);
-    }
-  }, [project, refinementQuestions, refinementAnswers, refinementSkipped]);
-
-  // Auto-save when answers change (debounced)
-  useEffect(() => {
-    if (refinementQuestions.length > 0) {
-      const timer = setTimeout(() => {
-        autoSaveAnswers();
-      }, 2000); // Auto-save after 2 seconds of inactivity
-
-      return () => clearTimeout(timer);
-    }
-  }, [refinementAnswers, refinementSkipped, autoSaveAnswers]);
 
   // Handle refinement answer change
   const handleRefinementAnswerChange = (questionId: number, answer: string) => {
@@ -214,9 +222,15 @@ export default function RefinementQuestionsClient({ projectId }: RefinementQuest
     setTimeout(() => autoSaveAnswers(), 500);
   };
 
-  // Handle save refinement answers
+  // Handle save refinement answers and process refinement
   const handleSaveRefinements = async () => {
     if (!project) return;
+    
+    // If already complete, redirect to refined PRD page
+    if (metadata?.status === 'complete') {
+      window.location.href = `/projects/${project.id}/prd-refined`;
+      return;
+    }
     
     setIsSavingRefinements(true);
     try {
@@ -238,16 +252,36 @@ export default function RefinementQuestionsClient({ projectId }: RefinementQuest
         throw new Error('Failed to save refinement answers');
       }
 
-      alert('Refinement answers saved successfully!');
-      
-      // Update metadata to move to next step
+      // Update metadata to processing step
       updateMetadata({ 
         currentStep: 'processing',
         status: 'processing'
       });
+
+      // Process refinement to generate refined PRD
+      setIsProcessing(true);
+      try {
+        const refinedPRD = await apiStorage.processRefinement(project.id);
+        
+        // Update metadata to complete step
+        updateMetadata({ 
+          currentStep: 'complete',
+          status: 'complete'
+        });
+
+        // Redirect to refined PRD page
+        window.location.href = `/projects/${project.id}/prd-refined`;
+      } catch (error) {
+        console.error('Error processing refinement:', error);
+        setErrorMessage('Failed to process refinement. Please try again.');
+        setShowErrorDialog(true);
+      } finally {
+        setIsProcessing(false);
+      }
     } catch (error) {
       console.error('Error saving refinements:', error);
-      alert('Failed to save refinement answers. Please try again.');
+      setErrorMessage('Failed to save refinement answers. Please try again.');
+      setShowErrorDialog(true);
     } finally {
       setIsSavingRefinements(false);
     }
@@ -295,14 +329,6 @@ export default function RefinementQuestionsClient({ projectId }: RefinementQuest
     );
   }
 
-  // Debug metadata state
-  console.log('Refinements Page - Metadata Debug:', {
-    projectId,
-    metadata,
-    refinementQuestionsGenerated: metadata?.refinementQuestionsGenerated,
-    refinementQuestionsGeneratedAt: metadata?.refinementQuestionsGeneratedAt
-  });
-
   // Error state
   if (!project || !metadata) {
     return (
@@ -324,7 +350,7 @@ export default function RefinementQuestionsClient({ projectId }: RefinementQuest
         <div>
           <h1 className="text-3xl font-bold">Refinement Questions</h1>
           <p className="text-muted-foreground mt-2">
-            Answer these questions to refine your PRD
+            Answer these questions to help improve your PRD
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -336,51 +362,34 @@ export default function RefinementQuestionsClient({ projectId }: RefinementQuest
         </div>
       </div>
 
-      {/* Generate Questions Button */}
+      {/* Generate Questions Section */}
       {refinementQuestions.length === 0 && (
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-center space-y-4">
-              {metadata?.refinementQuestionsGenerated ? (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <p className="font-medium text-green-600">Refinement questions already generated!</p>
-                  </div>
-                  <p className="text-muted-foreground">
-                    Load your existing refinement questions to continue improving your PRD
-                  </p>
-                  {metadata.refinementQuestionsGeneratedAt && (
-                    <p className="text-xs text-muted-foreground">
-                      Originally generated on {new Date(metadata.refinementQuestionsGeneratedAt).toLocaleString()}
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <p className="font-medium text-blue-600">Ready to refine your PRD?</p>
-                  </div>
-                  <p className="text-muted-foreground">
-                    Generate 10 AI-powered questions to help improve your product requirements document
-                  </p>
-                </div>
-              )}
+          <CardHeader>
+            <CardTitle>Generate Refinement Questions</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Generate 10 AI-powered questions to help improve your product requirements document.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
               <Button 
-                onClick={handleRefinePRD}
                 className="flex items-center gap-2"
                 disabled={isRefining}
+                onClick={handleRefinePRD}
               >
                 <Sparkles className="w-4 h-4" />
-                {isRefining ? "Generating..." : metadata?.refinementQuestionsGenerated ? "Load Existing Questions" : "Generate New Questions"}
+                {isRefining ? "Generating..." : "Generate Refinement Questions"}
               </Button>
+              <div className="text-sm text-muted-foreground">
+                {isRefining ? "AI is analyzing your PRD and generating questions..." : "Click to start generating questions"}
+              </div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Refinement Questions */}
+      {/* Questions Section */}
       {refinementQuestions.length > 0 && (
         <Card>
           <CardHeader>
@@ -399,14 +408,14 @@ export default function RefinementQuestionsClient({ projectId }: RefinementQuest
                 <Badge variant="secondary">
                   {completionStatus.skippedCount} skipped
                 </Badge>
-                              <Badge variant={completionStatus.isComplete ? "default" : "destructive"}>
-                {completionStatus.totalCompleted}/{refinementQuestions.length} complete
-              </Badge>
-              {isAutoSaving && (
-                <Badge variant="secondary" className="text-xs">
-                  Auto-saving...
+                <Badge variant={completionStatus.isComplete ? "default" : "destructive"}>
+                  {completionStatus.totalCompleted}/{refinementQuestions.length} complete
                 </Badge>
-              )}
+                {isAutoSaving && (
+                  <Badge variant="secondary" className="text-xs">
+                    Auto-saving...
+                  </Badge>
+                )}
               </div>
             </div>
             <p className="text-sm text-muted-foreground">
@@ -506,30 +515,30 @@ export default function RefinementQuestionsClient({ projectId }: RefinementQuest
             <div className="flex items-center justify-between mt-6 pt-4 border-t">
               <div className="flex items-center gap-4">
                 <div className="flex gap-2">
-                                  <Button
-                  variant="outline"
-                  onClick={async () => {
-                    // Auto-save before navigating
-                    await autoSaveAnswers();
-                    setRefinementStep(prev => Math.max(1, prev - 1));
-                  }}
-                  disabled={refinementStep === 1}
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={async () => {
-                    // Auto-save before navigating
-                    await autoSaveAnswers();
-                    setRefinementStep(prev => Math.min(totalRefinementSteps, prev + 1));
-                  }}
-                  disabled={refinementStep === totalRefinementSteps}
-                >
-                  Next
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      // Auto-save before navigating
+                      await autoSaveAnswers();
+                      setRefinementStep(prev => Math.max(1, prev - 1));
+                    }}
+                    disabled={refinementStep === 1}
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      // Auto-save before navigating
+                      await autoSaveAnswers();
+                      setRefinementStep(prev => Math.min(totalRefinementSteps, prev + 1));
+                    }}
+                    disabled={refinementStep === totalRefinementSteps}
+                  >
+                    Next
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
                 </div>
                 <div className="text-sm text-muted-foreground">
                   Step {refinementStep} of {totalRefinementSteps} • 
@@ -538,23 +547,52 @@ export default function RefinementQuestionsClient({ projectId }: RefinementQuest
               </div>
               
               <div className="flex gap-2">
-                <Link href={`/projects/${project.id}/prd`}>
-                  <Button variant="outline">
-                    Back to PRD
-                  </Button>
-                </Link>
                 <Button
                   onClick={handleSaveRefinements}
-                  disabled={isSavingRefinements || !completionStatus.isComplete}
+                  disabled={isSavingRefinements || isProcessing || !completionStatus.isComplete}
                   className="flex items-center gap-2"
                 >
-                  {isSavingRefinements ? "Saving..." : "Save Answers & Continue"}
+                  {isSavingRefinements ? "Saving..." : isProcessing ? "Processing..." : metadata?.status === 'complete' ? "View Refined PRD" : "Process Refinement"}
                 </Button>
               </div>
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* Success Dialog */}
+      <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Success!</DialogTitle>
+            <DialogDescription>
+              Your refinement answers have been saved successfully.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setShowSuccessDialog(false)}>
+              Continue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Error Dialog */}
+      <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Error</DialogTitle>
+            <DialogDescription>
+              {errorMessage}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setShowErrorDialog(false)}>
+              OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 
