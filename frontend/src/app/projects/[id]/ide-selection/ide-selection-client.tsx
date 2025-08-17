@@ -80,9 +80,8 @@ export default function IDESelectionClient({ projectId }: IDESelectionClientProp
     isLoading 
   } = useProjectState(projectId);
 
-  const [selectedIDE, setSelectedIDE] = useState<string>(metadata?.selectedIDE || '');
+  const [selectedIDEs, setSelectedIDEs] = useState<string[]>(metadata?.selectedIDEs || []);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -90,32 +89,38 @@ export default function IDESelectionClient({ projectId }: IDESelectionClientProp
   const handleIDESelection = (ideId: string) => {
     const ide = IDE_OPTIONS.find(option => option.id === ideId);
     if (ide && ide.available) {
-      setSelectedIDE(ideId);
+      setSelectedIDEs(prev => {
+        if (prev.includes(ideId)) {
+          // Remove if already selected
+          return prev.filter(id => id !== ideId);
+        } else {
+          // Add if not selected
+          return [...prev, ideId];
+        }
+      });
     }
   };
 
   // Handle generate
   const handleGenerate = async () => {
-    if (!project || !selectedIDE) return;
+    if (!project || selectedIDEs.length === 0) return;
 
     setIsGenerating(true);
     try {
-      // Update metadata with selected IDE
+      // Update metadata with selected IDEs
       await apiStorage.saveProjectMetadata({
         ...metadata!,
-        selectedIDE,
+        selectedIDEs,
         currentStep: 'generating',
         status: 'generating'
       });
 
-      // TODO: Add actual generation logic here
-      // For now, just show success dialog
-      setShowSuccessDialog(true);
+      // Redirect to generate page
+      window.location.href = `/projects/${project.id}/generate`;
     } catch (error) {
-      console.error('Error generating IDE rails:', error);
-      setErrorMessage('Failed to generate IDE rails. Please try again.');
+      console.error('Error updating project:', error);
+      setErrorMessage('Failed to update project. Please try again.');
       setShowErrorDialog(true);
-    } finally {
       setIsGenerating(false);
     }
   };
@@ -152,7 +157,7 @@ export default function IDESelectionClient({ projectId }: IDESelectionClientProp
         <div>
           <h1 className="text-3xl font-bold">Create IDE Rails</h1>
           <p className="text-muted-foreground mt-2">
-            Choose your preferred development environment to generate project artifacts
+            Choose one or more development environments to generate project artifacts
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -171,42 +176,42 @@ export default function IDESelectionClient({ projectId }: IDESelectionClientProp
             <Tooltip>
               <TooltipTrigger asChild>
                 <div>
-                  <Card 
-                    className={`cursor-pointer transition-all duration-200 ${
-                      selectedIDE === ide.id
-                        ? 'ring-2 ring-primary border-primary'
-                        : ide.available
-                        ? 'hover:shadow-md hover:scale-105'
-                        : 'opacity-60 cursor-not-allowed'
-                    }`}
-                    onClick={() => handleIDESelection(ide.id)}
-                  >
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${
-                            selectedIDE === ide.id
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-muted'
-                          }`}>
-                            {ide.icon}
-                          </div>
-                          <div>
-                            <CardTitle className="text-lg">{ide.name}</CardTitle>
-                            {ide.comingSoon && (
-                              <Badge variant="secondary" className="text-xs">
-                                Coming Soon
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        {selectedIDE === ide.id && (
-                          <Badge variant="default" className="text-xs">
-                            Selected
-                          </Badge>
-                        )}
-                      </div>
-                    </CardHeader>
+                                     <Card 
+                     className={`cursor-pointer transition-all duration-200 ${
+                       selectedIDEs.includes(ide.id)
+                         ? 'ring-2 ring-primary border-primary'
+                         : ide.available
+                         ? 'hover:shadow-md hover:scale-105'
+                         : 'opacity-60 cursor-not-allowed'
+                     }`}
+                     onClick={() => handleIDESelection(ide.id)}
+                   >
+                     <CardHeader className="pb-3">
+                       <div className="flex items-center justify-between">
+                         <div className="flex items-center gap-3">
+                           <div className={`p-2 rounded-lg ${
+                             selectedIDEs.includes(ide.id)
+                               ? 'bg-primary text-primary-foreground'
+                               : 'bg-muted'
+                           }`}>
+                             {ide.icon}
+                           </div>
+                           <div>
+                             <CardTitle className="text-lg">{ide.name}</CardTitle>
+                             {ide.comingSoon && (
+                               <Badge variant="secondary" className="text-xs">
+                                 Coming Soon
+                               </Badge>
+                             )}
+                           </div>
+                         </div>
+                         {selectedIDEs.includes(ide.id) && (
+                           <Badge variant="default" className="text-xs">
+                             Selected
+                           </Badge>
+                         )}
+                       </div>
+                     </CardHeader>
                     <CardContent>
                       <p className="text-sm text-muted-foreground">
                         {ide.description}
@@ -225,12 +230,22 @@ export default function IDESelectionClient({ projectId }: IDESelectionClientProp
         ))}
       </div>
 
-      {/* Generate Button */}
-      <div className="flex justify-center pt-8">
+            {/* Selection Summary and Generate Button */}
+      <div className="flex flex-col items-center gap-4 pt-8">
+        {selectedIDEs.length > 0 && (
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground">
+              {selectedIDEs.length} IDE{selectedIDEs.length > 1 ? 's' : ''} selected
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {selectedIDEs.map(id => IDE_OPTIONS.find(ide => ide.id === id)?.name).join(', ')}
+            </p>
+          </div>
+        )}
         <Button
           size="lg"
           onClick={handleGenerate}
-          disabled={!selectedIDE || isGenerating}
+          disabled={selectedIDEs.length === 0 || isGenerating}
           className="flex items-center gap-2"
         >
           {isGenerating ? (
@@ -263,22 +278,7 @@ export default function IDESelectionClient({ projectId }: IDESelectionClientProp
         </div>
       </div>
 
-      {/* Success Dialog */}
-      <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Success!</DialogTitle>
-            <DialogDescription>
-              IDE rails generation has been initiated successfully.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button onClick={() => setShowSuccessDialog(false)}>
-              Continue
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
 
       {/* Error Dialog */}
       <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>

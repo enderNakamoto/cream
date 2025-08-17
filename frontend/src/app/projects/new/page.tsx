@@ -248,6 +248,23 @@ export default function NewProjectPage() {
       // Save answers
       await apiStorage.saveProjectAnswers(answers);
 
+      console.log('Updating project status...');
+      // Update project status to prd-preview
+      await apiStorage.updateProject(projectId, { 
+        status: 'prd-preview',
+        currentStep: 'prd-preview'
+      });
+
+      // Also update metadata status
+      const metadata = await apiStorage.getProjectMetadata(projectId);
+      if (metadata) {
+        await apiStorage.saveProjectMetadata({
+          ...metadata,
+          status: 'prd-preview',
+          currentStep: 'prd-preview'
+        });
+      }
+
       console.log('Navigating to PRD preview...');
       // Navigate to PRD preview
       router.push(`/projects/${projectId}/prd`);

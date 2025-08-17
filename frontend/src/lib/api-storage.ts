@@ -19,7 +19,7 @@ export interface ProjectMetadata {
   status: 'draft' | 'prd-preview' | 'refining' | 'processing' | 'complete' | 'ide-selection' | 'generating';
   refinementQuestionsGenerated?: boolean;
   refinementQuestionsGeneratedAt?: string;
-  selectedIDE?: string;
+  selectedIDEs?: string[];
 }
 
 export interface ProjectAnswers {
