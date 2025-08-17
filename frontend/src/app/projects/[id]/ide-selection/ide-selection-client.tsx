@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -82,22 +82,39 @@ export default function IDESelectionClient({ projectId }: IDESelectionClientProp
 
   const [selectedIDEs, setSelectedIDEs] = useState<string[]>(metadata?.selectedIDEs || []);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  // Update local state when metadata changes
+  useEffect(() => {
+    if (metadata?.selectedIDEs) {
+      setSelectedIDEs(metadata.selectedIDEs);
+    }
+  }, [metadata?.selectedIDEs]);
+
   // Handle IDE selection
-  const handleIDESelection = (ideId: string) => {
+  const handleIDESelection = async (ideId: string) => {
     const ide = IDE_OPTIONS.find(option => option.id === ideId);
     if (ide && ide.available) {
-      setSelectedIDEs(prev => {
-        if (prev.includes(ideId)) {
-          // Remove if already selected
-          return prev.filter(id => id !== ideId);
-        } else {
-          // Add if not selected
-          return [...prev, ideId];
-        }
-      });
+      const newSelectedIDEs = selectedIDEs.includes(ideId)
+        ? selectedIDEs.filter(id => id !== ideId)
+        : [...selectedIDEs, ideId];
+      
+      setSelectedIDEs(newSelectedIDEs);
+
+      // Auto-save to metadata
+      setIsSaving(true);
+      try {
+        await apiStorage.saveProjectMetadata({
+          ...metadata!,
+          selectedIDEs: newSelectedIDEs
+        });
+      } catch (error) {
+        console.error('Error saving IDE selection:', error);
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
@@ -240,6 +257,12 @@ export default function IDESelectionClient({ projectId }: IDESelectionClientProp
             <p className="text-xs text-muted-foreground mt-1">
               {selectedIDEs.map(id => IDE_OPTIONS.find(ide => ide.id === id)?.name).join(', ')}
             </p>
+            {isSaving && (
+              <p className="text-xs text-blue-600 mt-1 flex items-center justify-center gap-1">
+                <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+                Saving...
+              </p>
+            )}
           </div>
         )}
         <Button

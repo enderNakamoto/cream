@@ -101,10 +101,14 @@ const DOC_FILES: DocFile[] = [
 
 // Web3-specific documentation files
 const getWeb3DocFiles = (answers: any): DocFile[] => {
+  console.log('getWeb3DocFiles called with answers:', answers);
+  console.log('Answers keys:', Object.keys(answers));
   const web3Docs: DocFile[] = [];
 
   // Oracle documentation
+  console.log('Checking oracle solution:', answers.oracleSolution, 'Type:', typeof answers.oracleSolution);
   if (answers.oracleSolution === 'chainlink') {
+    console.log('Adding Chainlink docs');
     web3Docs.push({
       id: 'chainlink-docs',
       name: 'Chainlink Documentation',
@@ -113,6 +117,7 @@ const getWeb3DocFiles = (answers: any): DocFile[] => {
       color: 'text-blue-600 bg-blue-50 border-blue-200'
     });
   } else if (answers.oracleSolution === 'acurast') {
+    console.log('Adding Acurast docs');
     web3Docs.push({
       id: 'acurast-docs',
       name: 'Acurast Documentation',
@@ -120,10 +125,14 @@ const getWeb3DocFiles = (answers: any): DocFile[] => {
       icon: <Code className="w-6 h-6" />,
       color: 'text-indigo-600 bg-indigo-50 border-indigo-200'
     });
+  } else {
+    console.log('Oracle solution not matched:', answers.oracleSolution);
   }
 
   // Cross-chain solution documentation
+  console.log('Checking cross-chain solution:', answers.crossChainSolution, 'Type:', typeof answers.crossChainSolution);
   if (answers.crossChainSolution === 'layer-zero') {
+    console.log('Adding Layer Zero docs');
     web3Docs.push({
       id: 'layer-zero-docs',
       name: 'Layer Zero Documentation',
@@ -132,6 +141,7 @@ const getWeb3DocFiles = (answers: any): DocFile[] => {
       color: 'text-purple-600 bg-purple-50 border-purple-200'
     });
   } else if (answers.crossChainSolution === 'hyperlane') {
+    console.log('Adding Hyperlane docs');
     web3Docs.push({
       id: 'hyperlane-docs',
       name: 'Hyperlane Documentation',
@@ -139,18 +149,23 @@ const getWeb3DocFiles = (answers: any): DocFile[] => {
       icon: <Layers className="w-6 h-6" />,
       color: 'text-cyan-600 bg-cyan-50 border-cyan-200'
     });
+  } else {
+    console.log('Cross-chain solution not matched:', answers.crossChainSolution);
   }
 
   // Wallet integration documentation
+  console.log('Checking wallet integration:', answers.walletIntegration, 'Type:', typeof answers.walletIntegration);
   if (answers.walletIntegration === 'rainbowkit') {
+    console.log('Adding RainbowKit docs');
     web3Docs.push({
       id: 'rainbowkit-docs',
       name: 'RainbowKit Documentation',
       description: 'RainbowKit wallet integration and best practices.',
       icon: <Palette className="w-6 h-6" />,
-      color: 'text-rainbow-600 bg-rainbow-50 border-rainbow-200'
+      color: 'text-emerald-600 bg-emerald-50 border-emerald-200'
     });
   } else if (answers.walletIntegration === 'dynamic') {
+    console.log('Adding Dynamic docs');
     web3Docs.push({
       id: 'dynamic-docs',
       name: 'Dynamic Documentation',
@@ -158,8 +173,11 @@ const getWeb3DocFiles = (answers: any): DocFile[] => {
       icon: <Palette className="w-6 h-6" />,
       color: 'text-emerald-600 bg-emerald-50 border-emerald-200'
     });
+  } else {
+    console.log('Wallet integration not matched:', answers.walletIntegration);
   }
 
+  console.log('Final web3Docs array:', web3Docs);
   return web3Docs;
 };
 
@@ -180,12 +198,20 @@ export default function GenerateClient({ projectId }: GenerateClientProps) {
       if (project) {
         try {
           const answers = await apiStorage.getProjectAnswers(project.id);
+          console.log('Project answers:', answers);
           setProjectAnswers(answers);
           
           // Check if it's a Web3 project and get specific documentation files
-          if (answers?.initialAnswers?.projectType === 'Web3 DApp') {
-            const web3Docs = getWeb3DocFiles(answers.initialAnswers);
+          const projectType = answers?.initialAnswers?.projectType;
+          console.log('Checking project type:', projectType);
+          
+          if (projectType === 'Web3 DApp' || projectType === 'web3-dapp' || projectType === 'Web3 Dapp') {
+            console.log('Web3 project detected, initial answers:', answers?.initialAnswers);
+            const web3Docs = getWeb3DocFiles(answers?.initialAnswers || {});
+            console.log('Web3 docs generated:', web3Docs);
             setWeb3DocFiles(web3Docs);
+          } else {
+            console.log('Not a Web3 project or projectType not found:', projectType);
           }
         } catch (error) {
           console.error('Error loading project answers:', error);
@@ -342,6 +368,8 @@ export default function GenerateClient({ projectId }: GenerateClientProps) {
           ))}
         </div>
       </div>
+
+
 
       {/* Web3 Documentation Files */}
       {web3DocFiles.length > 0 && (
