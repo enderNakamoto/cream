@@ -140,6 +140,19 @@ Generate exactly 10 questions in JSON format as specified in the system prompt.`
 
     try {
       await fs.writeFile(refinementsPath, JSON.stringify(refinementsData, null, 2));
+      
+      // Update metadata to mark questions as generated
+      const metadataPath = path.join(process.cwd(), '..', 'storage', 'projects', projectId, 'metadata.json');
+      try {
+        const metadataContent = await fs.readFile(metadataPath, 'utf-8');
+        const metadata = JSON.parse(metadataContent);
+        metadata.refinementQuestionsGenerated = true;
+        metadata.refinementQuestionsGeneratedAt = new Date().toISOString();
+        await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2));
+      } catch (metadataError) {
+        console.error('Failed to update metadata:', metadataError);
+        // Continue anyway - questions are still returned
+      }
     } catch (error) {
       console.error('Failed to save refinements:', error);
       // Continue anyway - questions are still returned

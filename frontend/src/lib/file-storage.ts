@@ -20,6 +20,8 @@ export interface ProjectMetadata {
   lastEdited: string;
   answersVersion: number;
   status: 'draft' | 'prd-preview' | 'refining' | 'processing' | 'complete';
+  refinementQuestionsGenerated?: boolean;
+  refinementQuestionsGeneratedAt?: string;
 }
 
 export interface ProjectAnswers {

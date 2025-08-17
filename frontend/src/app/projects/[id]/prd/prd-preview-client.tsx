@@ -124,32 +124,43 @@ ${data.additionalContext}
     }
   }, [searchParams, isEditing]);
 
-  // Load existing refinement answers if they exist
+  // Load existing refinement questions and answers if they exist
   useEffect(() => {
-    const loadRefinementAnswers = async () => {
-      if (!project) return;
+    const loadRefinementData = async () => {
+      if (!project || !metadata) return;
       
-      try {
-        const response = await fetch(`/api/projects/${project.id}/refinements`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.answers && data.answers.length > 0) {
-            const answersMap: Record<number, string> = {};
-            data.answers.forEach((answer: any) => {
-              if (!answer.skipped) {
-                answersMap[answer.questionId] = answer.answer;
-              }
-            });
-            setRefinementAnswers(answersMap);
+      // Check if refinement questions have been generated
+      if (metadata.refinementQuestionsGenerated) {
+        try {
+          const response = await fetch(`/api/projects/${project.id}/refinements`);
+          if (response.ok) {
+            const data = await response.json();
+            
+            // Load questions if they exist
+            if (data.questions && data.questions.length > 0) {
+              setRefinementQuestions(data.questions);
+              setShowRefinementQuestions(true);
+            }
+            
+            // Load answers if they exist
+            if (data.answers && data.answers.length > 0) {
+              const answersMap: Record<number, string> = {};
+              data.answers.forEach((answer: any) => {
+                if (!answer.skipped) {
+                  answersMap[answer.questionId] = answer.answer;
+                }
+              });
+              setRefinementAnswers(answersMap);
+            }
           }
+        } catch (error) {
+          console.error('Error loading refinement data:', error);
         }
-      } catch (error) {
-        console.error('Error loading refinement answers:', error);
       }
     };
 
-    loadRefinementAnswers();
-  }, [project]);
+    loadRefinementData();
+  }, [project, metadata]);
 
   // Initialize edit content when entering edit mode
   useEffect(() => {
@@ -225,8 +236,44 @@ ${data.additionalContext}
 
   // Handle PRD refinement
   const handleRefinePRD = async () => {
-    if (!project) return;
+    if (!project || !metadata) return;
     
+    // Check if refinement questions already exist
+    if (metadata.refinementQuestionsGenerated) {
+      // Load existing questions instead of generating new ones
+      try {
+        const response = await fetch(`/api/projects/${project.id}/refinements`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.questions && data.questions.length > 0) {
+            setRefinementQuestions(data.questions);
+            setShowRefinementQuestions(true);
+            
+            // Load existing answers if any
+            if (data.answers && data.answers.length > 0) {
+              const answersMap: Record<number, string> = {};
+              data.answers.forEach((answer: any) => {
+                if (!answer.skipped) {
+                  answersMap[answer.questionId] = answer.answer;
+                }
+              });
+              setRefinementAnswers(answersMap);
+            }
+            
+            // Update metadata to reflect refinement phase
+            updateMetadata({ 
+              currentStep: 'refinement-questions',
+              status: 'refining'
+            });
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error loading existing refinement questions:', error);
+      }
+    }
+    
+    // Generate new questions if they don't exist
     setIsRefining(true);
     try {
       const response = await fetch('/api/llm/prd-refinement', {
@@ -319,10 +366,28 @@ ${data.additionalContext}
   const getCurrentStepQuestions = () => {
     const startIndex = (refinementStep - 1) * 5;
     const endIndex = startIndex + 5;
-    return refinementQuestions.slice(startIndex, endIndex);
+    const questions = refinementQuestions.slice(startIndex, endIndex);
+    console.log('getCurrentStepQuestions:', {
+      refinementStep,
+      startIndex,
+      endIndex,
+      totalQuestions: refinementQuestions.length,
+      questionsInStep: questions.length,
+      questionIds: questions.map(q => q.id)
+    });
+    return questions;
   };
 
   const totalRefinementSteps = Math.ceil(refinementQuestions.length / 5);
+  
+  // Debug logging
+  console.log('Refinement Questions Debug:', {
+    totalQuestions: refinementQuestions.length,
+    totalSteps: totalRefinementSteps,
+    currentStep: refinementStep,
+    currentQuestions: getCurrentStepQuestions().length,
+    questions: refinementQuestions.map(q => ({ id: q.id, question: q.question.substring(0, 50) + '...' }))
+  });
 
   // Handle content change with auto-save
   const handleContentChange = (newContent: string) => {
@@ -493,7 +558,28 @@ ${data.additionalContext}
             </div>
             <p className="text-sm text-muted-foreground">
               Please answer these questions to help refine your PRD. You can skip questions you're unsure about.
+              {metadata?.refinementQuestionsGeneratedAt && (
+                <span className="block mt-1">
+                  Questions generated on {new Date(metadata.refinementQuestionsGeneratedAt).toLocaleString()}
+                </span>
+              )}
             </p>
+            
+            {/* Step Progress Indicator */}
+            <div className="flex items-center gap-2 mt-4">
+              {Array.from({ length: totalRefinementSteps }, (_, i) => (
+                <div
+                  key={i}
+                  className={`h-2 flex-1 rounded-full transition-colors ${
+                    i + 1 === refinementStep
+                      ? 'bg-primary'
+                      : i + 1 < refinementStep
+                      ? 'bg-primary/50'
+                      : 'bg-muted'
+                  }`}
+                />
+              ))}
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
@@ -542,23 +628,43 @@ ${data.additionalContext}
 
             {/* Navigation */}
             <div className="flex items-center justify-between mt-6 pt-4 border-t">
-              <div className="flex gap-2">
-                <Button
+              <div className="flex items-center gap-4">
+                <div className="flex gap-2">
+                                  <Button
                   variant="outline"
-                  onClick={() => setRefinementStep(prev => Math.max(1, prev - 1))}
+                  onClick={() => {
+                    console.log('Previous button clicked. Current step:', refinementStep);
+                    setRefinementStep(prev => {
+                      const prevStep = Math.max(1, prev - 1);
+                      console.log('Setting step to:', prevStep);
+                      return prevStep;
+                    });
+                  }}
                   disabled={refinementStep === 1}
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Previous
                 </Button>
-                <Button
+                                  <Button
                   variant="outline"
-                  onClick={() => setRefinementStep(prev => Math.min(totalRefinementSteps, prev + 1))}
+                  onClick={() => {
+                    console.log('Next button clicked. Current step:', refinementStep, 'Total steps:', totalRefinementSteps);
+                    setRefinementStep(prev => {
+                      const nextStep = Math.min(totalRefinementSteps, prev + 1);
+                      console.log('Setting step to:', nextStep);
+                      return nextStep;
+                    });
+                  }}
                   disabled={refinementStep === totalRefinementSteps}
                 >
                   Next
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Step {refinementStep} of {totalRefinementSteps} • 
+                  Questions {((refinementStep - 1) * 5) + 1}-{Math.min(refinementStep * 5, refinementQuestions.length)} of {refinementQuestions.length}
+                </div>
               </div>
               
               <div className="flex gap-2">
@@ -602,7 +708,7 @@ ${data.additionalContext}
               disabled={isSaving || isEditing || isRefining}
             >
               <Sparkles className="w-4 h-4" />
-              {isRefining ? "Generating..." : "Refine PRD"}
+              {isRefining ? "Loading..." : metadata?.refinementQuestionsGenerated ? "Continue Refinement" : "Refine PRD"}
             </Button>
           )}
         </div>
