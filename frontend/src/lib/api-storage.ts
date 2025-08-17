@@ -5,20 +5,21 @@ export interface Project {
   name: string;
   createdAt: string;
   updatedAt: string;
-  status: 'draft' | 'prd-preview' | 'refining' | 'processing' | 'complete';
-  currentStep: 'questions' | 'prd-preview' | 'prd-edit' | 'refinement-questions' | 'processing' | 'complete';
+  status: 'draft' | 'prd-preview' | 'refining' | 'processing' | 'complete' | 'ide-selection' | 'generating';
+  currentStep: 'questions' | 'prd-preview' | 'prd-edit' | 'refinement-questions' | 'processing' | 'complete' | 'ide-selection' | 'generating';
   prdVersion: number;
 }
 
 export interface ProjectMetadata {
   projectId: string;
-  currentStep: 'questions' | 'prd-preview' | 'prd-edit' | 'refinement-questions' | 'processing' | 'complete';
+  currentStep: 'questions' | 'prd-preview' | 'prd-edit' | 'refinement-questions' | 'processing' | 'complete' | 'ide-selection' | 'generating';
   prdVersion: number;
   lastEdited: string;
   answersVersion: number;
-  status: 'draft' | 'prd-preview' | 'refining' | 'processing' | 'complete';
+  status: 'draft' | 'prd-preview' | 'refining' | 'processing' | 'complete' | 'ide-selection' | 'generating';
   refinementQuestionsGenerated?: boolean;
   refinementQuestionsGeneratedAt?: string;
+  selectedIDE?: string;
 }
 
 export interface ProjectAnswers {

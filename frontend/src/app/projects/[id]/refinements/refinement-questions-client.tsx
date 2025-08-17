@@ -226,9 +226,9 @@ export default function RefinementQuestionsClient({ projectId }: RefinementQuest
   const handleSaveRefinements = async () => {
     if (!project) return;
     
-    // If already complete, redirect to refined PRD page
+    // If already complete, redirect to IDE selection page
     if (metadata?.status === 'complete') {
-      window.location.href = `/projects/${project.id}/prd-refined`;
+      window.location.href = `/projects/${project.id}/ide-selection`;
       return;
     }
     
@@ -265,12 +265,12 @@ export default function RefinementQuestionsClient({ projectId }: RefinementQuest
         
         // Update metadata to complete step
         updateMetadata({ 
-          currentStep: 'complete',
+          currentStep: 'ide-selection',
           status: 'complete'
         });
 
-        // Redirect to refined PRD page
-        window.location.href = `/projects/${project.id}/prd-refined`;
+        // Redirect to IDE selection page
+        window.location.href = `/projects/${project.id}/ide-selection`;
       } catch (error) {
         console.error('Error processing refinement:', error);
         setErrorMessage('Failed to process refinement. Please try again.');
@@ -552,7 +552,7 @@ export default function RefinementQuestionsClient({ projectId }: RefinementQuest
                   disabled={isSavingRefinements || isProcessing || !completionStatus.isComplete}
                   className="flex items-center gap-2"
                 >
-                  {isSavingRefinements ? "Saving..." : isProcessing ? "Processing..." : metadata?.status === 'complete' ? "View Refined PRD" : "Process Refinement"}
+                  {isSavingRefinements ? "Saving..." : isProcessing ? "Processing..." : metadata?.status === 'complete' ? "Create IDE Rails" : "Process Refinement"}
                 </Button>
               </div>
             </div>

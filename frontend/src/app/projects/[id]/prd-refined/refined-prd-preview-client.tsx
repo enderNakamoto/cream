@@ -296,9 +296,9 @@ export default function RefinedPRDPreviewClient({ projectId }: RefinedPRDPreview
           </Link>
         </div>
         <div className="flex gap-2">
-          <Link href={`/projects/${project.id}/refinements`}>
+          <Link href={`/projects/${project.id}/ide-selection`}>
             <Button variant="outline">
-              Back to Refinements
+              Create IDE Rails
             </Button>
           </Link>
         </div>
