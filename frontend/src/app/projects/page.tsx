@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Plus, Edit, Trash2, Eye, Calendar, Clock } from "lucide-react";
 import Link from "next/link";
-import { projectStorage, Project } from "@/lib/project-storage";
+import { apiStorage, Project } from "@/lib/api-storage";
 
 const statusConfig = {
   draft: { label: "Draft", variant: "outline" as const },
@@ -21,18 +21,28 @@ export default function ProjectsPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadProjects = () => {
-      const allProjects = projectStorage.getProjects();
-      setProjects(allProjects);
-      setIsLoading(false);
+    const loadProjects = async () => {
+      try {
+        const allProjects = await apiStorage.getProjects();
+        setProjects(allProjects);
+      } catch (error) {
+        console.error('Error loading projects:', error);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     loadProjects();
   }, []);
 
-  const handleDeleteProject = (projectId: string) => {
-    projectStorage.deleteProject(projectId);
-    setProjects(projectStorage.getProjects());
+  const handleDeleteProject = async (projectId: string) => {
+    try {
+      await apiStorage.deleteProject(projectId);
+      const updatedProjects = await apiStorage.getProjects();
+      setProjects(updatedProjects);
+    } catch (error) {
+      console.error('Error deleting project:', error);
+    }
   };
 
   const hasProjects = projects.length > 0;

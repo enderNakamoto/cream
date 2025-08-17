@@ -15,7 +15,7 @@ import { ChevronLeft, ChevronRight, Save } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { projectStorage, ProjectAnswers } from "@/lib/project-storage";
+import { apiStorage, ProjectAnswers } from "@/lib/api-storage";
 
 const questionSchema = z.object({
   projectName: z.string().min(1, "Project name is required"),
@@ -46,6 +46,7 @@ export default function NewProjectPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
   const totalSteps = questions.length;
 
   const form = useForm<QuestionFormData>({
@@ -61,45 +62,104 @@ export default function NewProjectPage() {
     },
   });
 
-  // Initialize project when component mounts
+  // Initialize project when component mounts (only once)
   useEffect(() => {
-    if (!projectId) {
-      const newProject = projectStorage.createNewProject("New Project");
-      setProjectId(newProject.id);
-    }
-  }, [projectId]);
-
-  const onSubmit = (data: QuestionFormData) => {
-    if (!projectId) return;
-
-    // Update project name
-    projectStorage.updateProject(projectId, { name: data.projectName });
-
-    // Create answers structure
-    const answers: ProjectAnswers = {
-      projectId,
-      version: 1,
-      initialAnswers: data,
-      refinementAnswers: {},
-      questions: {
-        initial: {
-          projectName: "What is your project name?",
-          projectType: "What type of project are you building?",
-          smartContractLanguage: "What smart contract language will you use?",
-          description: "Describe your project in detail",
-          targetAudience: "Who is your target audience?",
-          complexity: "What is the project complexity?",
-          timeline: "What is your development timeline?"
-        },
-        refinement: {}
+    const initializeProject = async () => {
+      if (!projectId) {
+        try {
+          const newProject = await apiStorage.createNewProject("New Project");
+          setProjectId(newProject.id);
+        } catch (error) {
+          console.error('Error creating project:', error);
+        }
       }
     };
 
-    // Save answers
-    projectStorage.saveProjectAnswers(answers);
+    initializeProject();
+  }, []); // Empty dependency array - only run once on mount
 
-    // Navigate to PRD preview
-    router.push(`/projects/${projectId}/prd`);
+  const handleSaveDraft = async () => {
+    if (!projectId) return;
+
+    setIsSavingDraft(true);
+    try {
+      const formData = form.getValues();
+      
+      // Update project name if provided
+      if (formData.projectName) {
+        await apiStorage.updateProject(projectId, { name: formData.projectName });
+      }
+
+      // Create draft answers structure with current form data
+      const answers: ProjectAnswers = {
+        projectId,
+        version: 1,
+        initialAnswers: formData,
+        refinementAnswers: {},
+        questions: {
+          initial: {
+            projectName: "What is your project name?",
+            projectType: "What type of project are you building?",
+            smartContractLanguage: "What smart contract language will you use?",
+            description: "Describe your project in detail",
+            targetAudience: "Who is your target audience?",
+            complexity: "What is the project complexity?",
+            timeline: "What is your development timeline?"
+          },
+          refinement: {}
+        }
+      };
+
+      // Save draft answers
+      await apiStorage.saveProjectAnswers(answers);
+
+      // Show success message (you could add a toast notification here)
+      console.log('Draft saved successfully!');
+      
+      // Optionally redirect to projects page
+      router.push('/projects');
+    } catch (error) {
+      console.error('Error saving draft:', error);
+    } finally {
+      setIsSavingDraft(false);
+    }
+  };
+
+  const onSubmit = async (data: QuestionFormData) => {
+    if (!projectId) return;
+
+    try {
+      // Update project name
+      await apiStorage.updateProject(projectId, { name: data.projectName });
+
+      // Create answers structure
+      const answers: ProjectAnswers = {
+        projectId,
+        version: 1,
+        initialAnswers: data,
+        refinementAnswers: {},
+        questions: {
+          initial: {
+            projectName: "What is your project name?",
+            projectType: "What type of project are you building?",
+            smartContractLanguage: "What smart contract language will you use?",
+            description: "Describe your project in detail",
+            targetAudience: "Who is your target audience?",
+            complexity: "What is the project complexity?",
+            timeline: "What is your development timeline?"
+          },
+          refinement: {}
+        }
+      };
+
+      // Save answers
+      await apiStorage.saveProjectAnswers(answers);
+
+      // Navigate to PRD preview
+      router.push(`/projects/${projectId}/prd`);
+    } catch (error) {
+      console.error('Error saving project data:', error);
+    }
   };
 
   const nextStep = () => {
@@ -340,9 +400,15 @@ export default function NewProjectPage() {
             </Button>
 
             <div className="flex gap-2">
-              <Button type="button" variant="outline" className="flex items-center gap-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="flex items-center gap-2"
+                onClick={handleSaveDraft}
+                disabled={!projectId || isSavingDraft}
+              >
                 <Save className="w-4 h-4" />
-                Save Draft
+                {isSavingDraft ? 'Saving...' : 'Save Draft'}
               </Button>
               
               {currentStep < totalSteps ? (

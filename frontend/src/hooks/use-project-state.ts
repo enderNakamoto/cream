@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { projectStorage, Project, ProjectMetadata, ProjectAnswers } from '@/lib/project-storage';
+import { apiStorage, Project, ProjectMetadata, ProjectAnswers } from '@/lib/api-storage';
 
 export interface UseProjectStateReturn {
   // Project data
@@ -49,98 +49,107 @@ export function useProjectState(projectId: string): UseProjectStateReturn {
   useEffect(() => {
     if (!projectId) return;
 
-    const loadProjectData = () => {
+    const loadProjectData = async () => {
       setIsLoading(true);
       
-      // Load project from projects list
-      const projects = projectStorage.getProjects();
-      const foundProject = projects.find(p => p.id === projectId);
-      
-      if (!foundProject) {
+      try {
+        // Load all project data in one call
+        const projectData = await apiStorage.getProjectData(projectId);
+        
+        setProject(projectData.project);
+        setMetadata(projectData.metadata);
+        setAnswers(projectData.answers);
+        setPrdContent(projectData.prdContent);
+      } catch (error) {
+        console.error('Error loading project data:', error);
         // Project not found, redirect to projects page
         router.push('/projects');
         return;
+      } finally {
+        setIsLoading(false);
       }
-
-      setProject(foundProject);
-
-      // Load metadata
-      const projectMetadata = projectStorage.getProjectMetadata(projectId);
-      setMetadata(projectMetadata);
-
-      // Load answers
-      const projectAnswers = projectStorage.getProjectAnswers(projectId);
-      setAnswers(projectAnswers);
-
-      // Load PRD content
-      const prd = projectStorage.getPRDContent(projectId);
-      setPrdContent(prd);
-
-      setIsLoading(false);
     };
 
     loadProjectData();
   }, [projectId, router]);
 
   // Update project
-  const updateProject = useCallback((updates: Partial<Project>) => {
+  const updateProject = useCallback(async (updates: Partial<Project>) => {
     if (!project) return;
     
     setIsSaving(true);
-    const updatedProject = { ...project, ...updates };
-    setProject(updatedProject);
-    projectStorage.updateProject(projectId, updates);
-    setIsSaving(false);
+    try {
+      const updatedProject = { ...project, ...updates };
+      setProject(updatedProject);
+      await apiStorage.updateProject(projectId, updates);
+    } catch (error) {
+      console.error('Error updating project:', error);
+    } finally {
+      setIsSaving(false);
+    }
   }, [project, projectId]);
 
   // Update metadata
-  const updateMetadata = useCallback((updates: Partial<ProjectMetadata>) => {
+  const updateMetadata = useCallback(async (updates: Partial<ProjectMetadata>) => {
     if (!metadata) return;
     
     setIsSaving(true);
-    const updatedMetadata = { ...metadata, ...updates, lastEdited: new Date().toISOString() };
-    setMetadata(updatedMetadata);
-    projectStorage.saveProjectMetadata(updatedMetadata);
-    setIsSaving(false);
+    try {
+      const updatedMetadata = { ...metadata, ...updates, lastEdited: new Date().toISOString() };
+      setMetadata(updatedMetadata);
+      await apiStorage.saveProjectMetadata(updatedMetadata);
+    } catch (error) {
+      console.error('Error updating metadata:', error);
+    } finally {
+      setIsSaving(false);
+    }
   }, [metadata]);
 
   // Update answers
-  const updateAnswers = useCallback((updates: Partial<ProjectAnswers>) => {
+  const updateAnswers = useCallback(async (updates: Partial<ProjectAnswers>) => {
     if (!answers) return;
     
     setIsSaving(true);
-    const updatedAnswers = { ...answers, ...updates, version: answers.version + 1 };
-    setAnswers(updatedAnswers);
-    projectStorage.saveProjectAnswers(updatedAnswers);
-    
-    // Also update metadata
-    if (metadata) {
-      const updatedMetadata = { ...metadata, answersVersion: updatedAnswers.version };
-      setMetadata(updatedMetadata);
-      projectStorage.saveProjectMetadata(updatedMetadata);
+    try {
+      const updatedAnswers = { ...answers, ...updates, version: answers.version + 1 };
+      setAnswers(updatedAnswers);
+      await apiStorage.saveProjectAnswers(updatedAnswers);
+      
+      // Also update metadata
+      if (metadata) {
+        const updatedMetadata = { ...metadata, answersVersion: updatedAnswers.version };
+        setMetadata(updatedMetadata);
+        await apiStorage.saveProjectMetadata(updatedMetadata);
+      }
+    } catch (error) {
+      console.error('Error updating answers:', error);
+    } finally {
+      setIsSaving(false);
     }
-    
-    setIsSaving(false);
   }, [answers, metadata]);
 
   // Update PRD content
-  const updatePRDContent = useCallback((content: string) => {
+  const updatePRDContent = useCallback(async (content: string) => {
     setIsSaving(true);
-    setPrdContent(content);
-    projectStorage.savePRDContent(projectId, content);
-    
-    // Update metadata with new version
-    if (metadata) {
-      const updatedMetadata = { 
-        ...metadata, 
-        prdVersion: metadata.prdVersion + 1,
-        lastEdited: new Date().toISOString()
-      };
-      setMetadata(updatedMetadata);
-      projectStorage.saveProjectMetadata(updatedMetadata);
+    try {
+      setPrdContent(content);
+      await apiStorage.savePRDContent(projectId, content);
+      
+      // Update metadata with new version
+      if (metadata) {
+        const updatedMetadata = { 
+          ...metadata, 
+          prdVersion: metadata.prdVersion + 1,
+          lastEdited: new Date().toISOString()
+        };
+        setMetadata(updatedMetadata);
+        await apiStorage.saveProjectMetadata(updatedMetadata);
+      }
+    } catch (error) {
+      console.error('Error updating PRD content:', error);
+    } finally {
+      setIsSaving(false);
     }
-    
-    setIsSaving(false);
   }, [projectId, metadata]);
 
   // Navigation functions
