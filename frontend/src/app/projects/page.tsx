@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Edit, Trash2, Eye, Calendar, Clock } from "lucide-react";
+import Link from "next/link";
 
 // Mock data for demonstration
 const mockProjects = [
@@ -47,10 +48,12 @@ export default function ProjectsPage() {
             Manage and organize your context engineering projects
           </p>
         </div>
-        <Button className="flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          New Project
-        </Button>
+        <Link href="/projects/new">
+          <Button className="flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            New Project
+          </Button>
+        </Link>
       </div>
 
       {/* Projects Grid/List */}
@@ -106,10 +109,12 @@ export default function ProjectsPage() {
                 Create your first project to start building context files for your development tools.
               </p>
             </div>
-            <Button size="lg" className="flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              Create Your First Project
-            </Button>
+            <Link href="/projects/new">
+              <Button size="lg" className="flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                Create Your First Project
+              </Button>
+            </Link>
           </CardContent>
         </Card>
       )}

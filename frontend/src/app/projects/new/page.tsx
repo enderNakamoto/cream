@@ -18,6 +18,7 @@ import * as z from "zod";
 const questionSchema = z.object({
   projectName: z.string().min(1, "Project name is required"),
   projectType: z.string().min(1, "Please select a project type"),
+  smartContractLanguage: z.string().optional(),
   description: z.string().min(10, "Description must be at least 10 characters"),
   targetAudience: z.string().min(1, "Please select target audience"),
   complexity: z.string().min(1, "Please select complexity level"),
@@ -48,6 +49,7 @@ export default function NewProjectPage() {
     defaultValues: {
       projectName: "",
       projectType: "",
+      smartContractLanguage: "",
       description: "",
       targetAudience: "",
       complexity: "",
@@ -132,6 +134,7 @@ export default function NewProjectPage() {
                             <SelectItem value="api">API/Backend Service</SelectItem>
                             <SelectItem value="desktop-app">Desktop Application</SelectItem>
                             <SelectItem value="library">Library/Package</SelectItem>
+                            <SelectItem value="web3-dapp">Web3 DApp</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormDescription>
@@ -141,6 +144,35 @@ export default function NewProjectPage() {
                       </FormItem>
                     )}
                   />
+
+                  {form.watch("projectType") === "web3-dapp" && (
+                    <FormField
+                      control={form.control}
+                      name="smartContractLanguage"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Smart Contract Language</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select smart contract language" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="solidity">Solidity</SelectItem>
+                              <SelectItem value="move">Move</SelectItem>
+                              <SelectItem value="rust-soroban">Rust (Soroban)</SelectItem>
+                              <SelectItem value="rust-solana">Rust (Solana)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            Choose the programming language for your smart contracts
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
 
                   <FormField
                     control={form.control}
