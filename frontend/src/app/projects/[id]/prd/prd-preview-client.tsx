@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -15,6 +16,7 @@ interface PRDPreviewClientProps {
 }
 
 export default function PRDPreviewClient({ projectId }: PRDPreviewClientProps) {
+  const searchParams = useSearchParams();
   const { 
     project, 
     metadata, 
@@ -51,6 +53,14 @@ ${answers.initialAnswers.description}
 ### Next Steps
 This is a draft PRD. You can edit it to add more details and refine the requirements.
 ` : '');
+
+  // Check for edit parameter in URL and auto-switch to edit mode
+  useEffect(() => {
+    const editParam = searchParams.get('edit');
+    if (editParam === 'true' && !isEditing) {
+      setIsEditing(true);
+    }
+  }, [searchParams, isEditing]);
 
   // Initialize edit content when entering edit mode
   useEffect(() => {

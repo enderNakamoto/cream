@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -21,7 +21,7 @@ const questionSchema = z.object({
   projectName: z.string().min(1, "Project name is required"),
   projectType: z.string().min(1, "Please select a project type"),
   smartContractLanguage: z.string().optional(),
-  description: z.string().min(10, "Description must be at least 10 characters"),
+  description: z.string().min(5, "Description must be at least 5 characters"),
   targetAudience: z.string().min(1, "Please select target audience"),
   complexity: z.string().min(1, "Please select complexity level"),
   timeline: z.string().min(1, "Please select timeline"),
@@ -44,9 +44,12 @@ const questions = [
 
 export default function NewProjectPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [currentStep, setCurrentStep] = useState(1);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const hasInitialized = useRef(false);
   const totalSteps = questions.length;
 
   const form = useForm<QuestionFormData>({
@@ -65,18 +68,40 @@ export default function NewProjectPage() {
   // Initialize project when component mounts (only once)
   useEffect(() => {
     const initializeProject = async () => {
-      if (!projectId) {
+      // Check if we have a project ID in URL params
+      const urlProjectId = searchParams.get('projectId');
+      
+      if (urlProjectId) {
+        console.log('Found project ID in URL:', urlProjectId);
+        setProjectId(urlProjectId);
+        setIsInitializing(false);
+        return;
+      }
+
+      // Use ref to ensure we only create a project once
+      if (!hasInitialized.current && !projectId) {
+        hasInitialized.current = true;
         try {
+          console.log('Creating new project...');
           const newProject = await apiStorage.createNewProject("New Project");
+          console.log('Created project:', newProject.id);
           setProjectId(newProject.id);
+          
+          // Update URL with project ID
+          const newUrl = `/projects/new?projectId=${newProject.id}`;
+          router.replace(newUrl, { scroll: false });
         } catch (error) {
           console.error('Error creating project:', error);
+        } finally {
+          setIsInitializing(false);
         }
+      } else {
+        setIsInitializing(false);
       }
     };
 
     initializeProject();
-  }, []); // Empty dependency array - only run once on mount
+  }, [searchParams, router]); // Include searchParams and router in dependencies
 
   const handleSaveDraft = async () => {
     if (!projectId) return;
@@ -116,7 +141,7 @@ export default function NewProjectPage() {
       // Show success message (you could add a toast notification here)
       console.log('Draft saved successfully!');
       
-      // Optionally redirect to projects page
+      // Redirect to projects page
       router.push('/projects');
     } catch (error) {
       console.error('Error saving draft:', error);
@@ -126,12 +151,23 @@ export default function NewProjectPage() {
   };
 
   const onSubmit = async (data: QuestionFormData) => {
-    if (!projectId) return;
+    console.log('=== onSubmit called ===');
+    console.log('Form data:', data);
+    console.log('Project ID:', projectId);
+    console.log('Form errors:', form.formState.errors);
+    console.log('Form is valid:', form.formState.isValid);
+    
+    if (!projectId) {
+      console.error('No projectId available');
+      return;
+    }
 
     try {
+      console.log('Updating project name...');
       // Update project name
       await apiStorage.updateProject(projectId, { name: data.projectName });
 
+      console.log('Creating answers structure...');
       // Create answers structure
       const answers: ProjectAnswers = {
         projectId,
@@ -152,9 +188,11 @@ export default function NewProjectPage() {
         }
       };
 
+      console.log('Saving answers...');
       // Save answers
       await apiStorage.saveProjectAnswers(answers);
 
+      console.log('Navigating to PRD preview...');
       // Navigate to PRD preview
       router.push(`/projects/${projectId}/prd`);
     } catch (error) {
@@ -176,6 +214,17 @@ export default function NewProjectPage() {
 
   const progress = (currentStep / totalSteps) * 100;
 
+  // Show loading while initializing
+  if (isInitializing) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-8">
+        <div className="text-center py-16">
+          <p className="text-muted-foreground">Initializing project...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Progress Indicator */}
@@ -191,7 +240,12 @@ export default function NewProjectPage() {
 
       {/* Question Form */}
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <form 
+          onSubmit={form.handleSubmit(onSubmit, (errors) => {
+            console.log('Form validation errors:', errors);
+          })} 
+          className="space-y-8"
+        >
           <Card>
             <CardHeader>
               <CardTitle>{questions[currentStep - 1].title}</CardTitle>
@@ -288,8 +342,11 @@ export default function NewProjectPage() {
                           />
                         </FormControl>
                         <FormDescription>
-                          Provide a comprehensive description of your project goals and features
+                          Provide a comprehensive description of your project goals and features (minimum 5 characters)
                         </FormDescription>
+                        <div className="text-xs text-muted-foreground">
+                          {field.value?.length || 0}/5 characters
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -405,7 +462,7 @@ export default function NewProjectPage() {
                 variant="outline" 
                 className="flex items-center gap-2"
                 onClick={handleSaveDraft}
-                disabled={!projectId || isSavingDraft}
+                disabled={!projectId || isSavingDraft || isInitializing}
               >
                 <Save className="w-4 h-4" />
                 {isSavingDraft ? 'Saving...' : 'Save Draft'}
@@ -421,7 +478,11 @@ export default function NewProjectPage() {
                   <ChevronRight className="w-4 h-4" />
                 </Button>
               ) : (
-                <Button type="submit" className="flex items-center gap-2">
+                <Button 
+                  type="submit" 
+                  className="flex items-center gap-2"
+                  onClick={() => console.log('Generate PRD button clicked')}
+                >
                   Generate PRD
                 </Button>
               )}

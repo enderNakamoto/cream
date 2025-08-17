@@ -113,15 +113,18 @@ export default function ProjectsPage() {
                     Last modified: {new Date(project.updatedAt).toLocaleDateString()}
                   </div>
                   <div className="flex gap-2">
-                    <Link href={`/projects/${project.id}`} className="flex-1">
+                    <Link href={`/projects/${project.id}/prd`} className="flex-1">
                       <Button size="sm" variant="outline" className="w-full">
                         <Eye className="w-4 h-4 mr-2" />
                         View
                       </Button>
                     </Link>
-                    <Button size="sm" variant="outline">
-                      <Edit className="w-4 h-4" />
-                    </Button>
+                    <Link href={`/projects/${project.id}/prd?edit=true`}>
+                      <Button size="sm" variant="outline">
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit
+                      </Button>
+                    </Link>
                     <Button 
                       size="sm" 
                       variant="outline"
