@@ -21,6 +21,7 @@ import {
   Zap
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useProjectState } from "@/hooks/use-project-state";
 import { apiStorage } from "@/lib/api-storage";
 
@@ -182,13 +183,13 @@ const getWeb3DocFiles = (answers: any): DocFile[] => {
 };
 
 export default function GenerateClient({ projectId }: GenerateClientProps) {
+  const router = useRouter();
   const { 
     project, 
     metadata, 
     isLoading 
   } = useProjectState(projectId);
 
-  const [isGenerating, setIsGenerating] = useState(false);
   const [projectAnswers, setProjectAnswers] = useState<any>(null);
   const [web3DocFiles, setWeb3DocFiles] = useState<DocFile[]>([]);
 
@@ -222,31 +223,7 @@ export default function GenerateClient({ projectId }: GenerateClientProps) {
     loadProjectData();
   }, [project]);
 
-  // Handle generate
-  const handleGenerate = async () => {
-    if (!project) return;
 
-    setIsGenerating(true);
-    try {
-      // Update metadata to generating status
-      await apiStorage.saveProjectMetadata({
-        ...metadata!,
-        currentStep: 'generating',
-        status: 'generating'
-      });
-
-      // TODO: Add actual generation logic here
-      // For now, just simulate generation
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Redirect to results page or show success
-      console.log('Generation completed');
-    } catch (error) {
-      console.error('Error generating files:', error);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
 
   // Loading state
   if (isLoading) {
@@ -438,22 +415,12 @@ export default function GenerateClient({ projectId }: GenerateClientProps) {
         
         <Button
           size="lg"
-          onClick={handleGenerate}
-          disabled={isGenerating}
+          onClick={() => router.push(`/projects/${project.id}/generate-docs`)}
           className="flex items-center gap-3 px-8 py-6 text-lg font-semibold h-auto"
         >
-          {isGenerating ? (
-            <>
-              <div className="w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              Generating Files...
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-6 h-6" />
-              Generate All Files
-              <ArrowRight className="w-6 h-6" />
-            </>
-          )}
+          <Sparkles className="w-6 h-6" />
+          Generate Documentation
+          <ArrowRight className="w-6 h-6" />
         </Button>
       </div>
 

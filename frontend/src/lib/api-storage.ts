@@ -20,6 +20,11 @@ export interface ProjectMetadata {
   refinementQuestionsGenerated?: boolean;
   refinementQuestionsGeneratedAt?: string;
   selectedIDEs?: string[];
+  generatedFiles?: string[];
+  lastGeneratedFile?: string;
+  lastGeneratedAt?: string;
+  noraGeneratedFiles?: string[];
+  cursorGeneratedFiles?: string[];
 }
 
 export interface ProjectAnswers {
@@ -296,5 +301,82 @@ export const apiStorage = {
   // Generate unique project ID (client-side for immediate use)
   generateProjectId(): string {
     return `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  },
+
+  // Generate documentation file for specific IDE
+  async generateDocFile(projectId: string, filename: string, ide: string): Promise<{ content: string; filename: string; ide: string }> {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/generate-docs/${filename}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ide })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate documentation file');
+      }
+      
+      return response.json();
+    } catch (error) {
+      console.error('Error generating doc file:', error);
+      throw error;
+    }
+  },
+
+  // Get documentation file content for specific IDE
+  async getDocFileContent(projectId: string, filename: string, ide: string): Promise<{ content: string; filename: string; ide: string }> {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/generate-docs/${filename}?ide=${ide}`);
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to get file content');
+      }
+      
+      return response.json();
+    } catch (error) {
+      console.error('Error getting doc file content:', error);
+      throw error;
+    }
+  },
+
+  // Update documentation file content for specific IDE
+  async updateDocFileContent(projectId: string, filename: string, content: string, ide: string): Promise<void> {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/generate-docs/${filename}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, ide })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update file content');
+      }
+    } catch (error) {
+      console.error('Error updating doc file content:', error);
+      throw error;
+    }
+  },
+
+  // Download Cursor package
+  async downloadCursorPackage(projectId: string): Promise<Blob> {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/download-cursor`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create Cursor download package');
+      }
+      
+      return response.blob();
+    } catch (error) {
+      console.error('Error downloading Cursor package:', error);
+      throw error;
+    }
   }
 }; 

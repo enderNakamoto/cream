@@ -23,6 +23,11 @@ export interface ProjectMetadata {
   refinementQuestionsGenerated?: boolean;
   refinementQuestionsGeneratedAt?: string;
   selectedIDEs?: string[];
+  generatedFiles?: string[];
+  lastGeneratedFile?: string;
+  lastGeneratedAt?: string;
+  noraGeneratedFiles?: string[];
+  cursorGeneratedFiles?: string[];
 }
 
 export interface ProjectAnswers {
