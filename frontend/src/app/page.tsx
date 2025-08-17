@@ -18,6 +18,7 @@ import {
   Zap
 } from "lucide-react";
 import Link from "next/link";
+import TypewriterComplaints from "@/components/typewriter-complaints";
 
 export default function HomePage() {
   return (
@@ -38,6 +39,11 @@ export default function HomePage() {
             Get Started
           </Button>
         </Link>
+      </section>
+
+      {/* Developer Complaints Typewriter */}
+      <section className="space-y-6">
+        <TypewriterComplaints />
       </section>
 
       {/* Context Engineering Section */}

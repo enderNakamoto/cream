@@ -286,9 +286,16 @@ export default function GenerateClient({ projectId }: GenerateClientProps) {
                   </div>
                   <div>
                     <CardTitle className="text-lg">{rule.name}</CardTitle>
-                    <Badge variant="outline" className="text-xs">
-                      Rule File
-                    </Badge>
+                    <div className="flex gap-2">
+                      <Badge variant="outline" className="text-xs">
+                        Rule File
+                      </Badge>
+                      {rule.id === 'shadcn-ui-rule' && (
+                        <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-800 border-orange-200">
+                          Coming Soon
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardHeader>
@@ -355,7 +362,12 @@ export default function GenerateClient({ projectId }: GenerateClientProps) {
           
           <div className="space-y-6">
             <div className="text-center">
-              <h2 className="text-2xl font-bold">Web3 Integration Documentation</h2>
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <h2 className="text-2xl font-bold">Web3 Integration Documentation</h2>
+                <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200">
+                  Coming Soon
+                </Badge>
+              </div>
               <p className="text-muted-foreground mt-2">
                 Additional documentation for your selected Web3 integrations
               </p>
