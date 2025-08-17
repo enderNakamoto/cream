@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 
 const COMPLAINTS = [
   "Why the fuck did you rewrite the whole file when I just asked for one line?!",
@@ -30,6 +30,11 @@ export default function TypewriterComplaints() {
   const [currentText, setCurrentText] = useState("");
   const [isTyping, setIsTyping] = useState(true);
 
+  // Debug: Log when component mounts
+  useEffect(() => {
+    console.log("TypewriterComplaints component mounted");
+  }, []);
+
   useEffect(() => {
     const complaint = COMPLAINTS[currentComplaintIndex];
     let charIndex = 0;
@@ -52,10 +57,10 @@ export default function TypewriterComplaints() {
     }, 100); // Slower typing speed
 
     return () => clearInterval(typeInterval);
-  }, [currentComplaintIndex, isTyping]);
+  }, [currentComplaintIndex]);
 
   return (
-    <div className="text-center max-w-4xl mx-auto">
+    <div className="text-center max-w-4xl mx-auto h-24 flex items-center justify-center">
       <p className="text-muted-foreground font-mono text-lg leading-relaxed">
         {currentText}
         {isTyping && <span className="animate-pulse">|</span>}
