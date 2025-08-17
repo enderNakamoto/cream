@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +58,13 @@ const RULE_FILES: RuleFile[] = [
     description: 'Guides the model on how to use each file during development (e.g., referring to bug tracking when errors arise).',
     icon: <Settings className="w-6 h-6" />,
     color: 'text-blue-600 bg-blue-50 border-blue-200'
+  },
+  {
+    id: 'shadcn-ui-rule',
+    name: 'shadcn-UI.md',
+    description: 'Orchestrates with shadCN MCP to create consistent UI with minimal effort.',
+    icon: <Palette className="w-6 h-6" />,
+    color: 'text-green-600 bg-green-50 border-green-200'
   }
 ];
 
@@ -92,6 +99,70 @@ const DOC_FILES: DocFile[] = [
   }
 ];
 
+// Web3-specific documentation files
+const getWeb3DocFiles = (answers: any): DocFile[] => {
+  const web3Docs: DocFile[] = [];
+
+  // Oracle documentation
+  if (answers.oracleSolution === 'chainlink') {
+    web3Docs.push({
+      id: 'chainlink-docs',
+      name: 'Chainlink Documentation',
+      description: 'Chainlink oracle integration and best practices.',
+      icon: <Code className="w-6 h-6" />,
+      color: 'text-blue-600 bg-blue-50 border-blue-200'
+    });
+  } else if (answers.oracleSolution === 'acurast') {
+    web3Docs.push({
+      id: 'acurast-docs',
+      name: 'Acurast Documentation',
+      description: 'Acurast oracle integration and best practices.',
+      icon: <Code className="w-6 h-6" />,
+      color: 'text-indigo-600 bg-indigo-50 border-indigo-200'
+    });
+  }
+
+  // Cross-chain solution documentation
+  if (answers.crossChainSolution === 'layer-zero') {
+    web3Docs.push({
+      id: 'layer-zero-docs',
+      name: 'Layer Zero Documentation',
+      description: 'Layer Zero cross-chain integration and best practices.',
+      icon: <Layers className="w-6 h-6" />,
+      color: 'text-purple-600 bg-purple-50 border-purple-200'
+    });
+  } else if (answers.crossChainSolution === 'hyperlane') {
+    web3Docs.push({
+      id: 'hyperlane-docs',
+      name: 'Hyperlane Documentation',
+      description: 'Hyperlane cross-chain integration and best practices.',
+      icon: <Layers className="w-6 h-6" />,
+      color: 'text-cyan-600 bg-cyan-50 border-cyan-200'
+    });
+  }
+
+  // Wallet integration documentation
+  if (answers.walletIntegration === 'rainbowkit') {
+    web3Docs.push({
+      id: 'rainbowkit-docs',
+      name: 'RainbowKit Documentation',
+      description: 'RainbowKit wallet integration and best practices.',
+      icon: <Palette className="w-6 h-6" />,
+      color: 'text-rainbow-600 bg-rainbow-50 border-rainbow-200'
+    });
+  } else if (answers.walletIntegration === 'dynamic') {
+    web3Docs.push({
+      id: 'dynamic-docs',
+      name: 'Dynamic Documentation',
+      description: 'Dynamic wallet integration and best practices.',
+      icon: <Palette className="w-6 h-6" />,
+      color: 'text-emerald-600 bg-emerald-50 border-emerald-200'
+    });
+  }
+
+  return web3Docs;
+};
+
 export default function GenerateClient({ projectId }: GenerateClientProps) {
   const { 
     project, 
@@ -100,6 +171,30 @@ export default function GenerateClient({ projectId }: GenerateClientProps) {
   } = useProjectState(projectId);
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [projectAnswers, setProjectAnswers] = useState<any>(null);
+  const [web3DocFiles, setWeb3DocFiles] = useState<DocFile[]>([]);
+
+  // Load project answers and determine Web3 documentation files
+  useEffect(() => {
+    const loadProjectData = async () => {
+      if (project) {
+        try {
+          const answers = await apiStorage.getProjectAnswers(project.id);
+          setProjectAnswers(answers);
+          
+          // Check if it's a Web3 project and get specific documentation files
+          if (answers?.initialAnswers?.projectType === 'Web3 DApp') {
+            const web3Docs = getWeb3DocFiles(answers.initialAnswers);
+            setWeb3DocFiles(web3Docs);
+          }
+        } catch (error) {
+          console.error('Error loading project answers:', error);
+        }
+      }
+    };
+
+    loadProjectData();
+  }, [project]);
 
   // Handle generate
   const handleGenerate = async () => {
@@ -158,86 +253,25 @@ export default function GenerateClient({ projectId }: GenerateClientProps) {
       <div className="text-center space-y-4">
         <h1 className="text-4xl font-bold">Generate Project Context</h1>
         <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-          Transform your refined PRD into comprehensive documentation and rules that will guide AI development tools
+          Transform your refined PRD into comprehensive documentation and rules for AI development tools
         </p>
       </div>
-
-      {/* Value Proposition */}
-      <Alert className="border-primary/20 bg-primary/5">
-        <Zap className="h-4 w-4" />
-        <AlertDescription className="text-base">
-          <strong>The Missing Orchestration Layer:</strong> This platform serves as the missing orchestration layer that transforms human requirements into structured, actionable context for AI development tools while maintaining:
-        </AlertDescription>
-      </Alert>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="border-primary/20 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-primary" />
-              Project Coherence
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Maintain consistency across tool switches and development phases
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-primary/20 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Palette className="w-5 h-5 text-primary" />
-              Design Consistency
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Systematic design system generation ensures visual and functional consistency
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-primary/20 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-primary" />
-              Context Continuity
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Seamless context transfer regardless of AI agent choice or tool selection
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-primary/20 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-primary" />
-              Knowledge Preservation
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Preserve and transfer knowledge over time and across team members
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Separator />
 
       {/* Rule Files */}
       <div className="space-y-6">
         <div className="text-center">
           <h2 className="text-2xl font-bold">Rule Files</h2>
           <p className="text-muted-foreground mt-2">
-            Core rules that guide the AI development process
+            Core rules that guide the AI development process and prevent context overflow
           </p>
         </div>
+
+        <Alert className="border-blue-200 bg-blue-50">
+          <Settings className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-800">
+            <strong>Why Rules Matter:</strong> These rules ensure the model can work step-by-step without losing track or hallucinating due to context overflow. They provide structured guidance for efficient context management.
+          </AlertDescription>
+        </Alert>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {RULE_FILES.map((rule) => (
@@ -272,9 +306,16 @@ export default function GenerateClient({ projectId }: GenerateClientProps) {
         <div className="text-center">
           <h2 className="text-2xl font-bold">Documentation Files</h2>
           <p className="text-muted-foreground mt-2">
-            Comprehensive documentation that will be generated from your PRD
+            Comprehensive documentation that will be generated from your PRD to fill the context window
           </p>
         </div>
+
+        <Alert className="border-green-200 bg-green-50">
+          <Layers className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-800">
+            <strong>Context Window Management:</strong> Don't dump everything into one file; break context into manageable pieces. Provide context only when necessary to keep the model focused and avoid overwhelming it.
+          </AlertDescription>
+        </Alert>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {DOC_FILES.map((doc) => (
@@ -302,16 +343,70 @@ export default function GenerateClient({ projectId }: GenerateClientProps) {
         </div>
       </div>
 
+      {/* Web3 Documentation Files */}
+      {web3DocFiles.length > 0 && (
+        <>
+          <Separator />
+          
+          <div className="space-y-6">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold">Web3 Integration Documentation</h2>
+              <p className="text-muted-foreground mt-2">
+                Additional documentation for your selected Web3 integrations
+              </p>
+            </div>
+
+            <Alert className="border-amber-200 bg-amber-50">
+              <Code className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800">
+                <strong>Web3 Context:</strong> These files provide specific integration details for your chosen Web3 technologies, ensuring proper implementation and best practices.
+              </AlertDescription>
+            </Alert>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {web3DocFiles.map((doc) => (
+                <Card key={doc.id} className="hover:shadow-lg transition-shadow border-amber-200 bg-amber-50/30">
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${doc.color}`}>
+                        {doc.icon}
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">{doc.name}</CardTitle>
+                        <Badge variant="outline" className="text-xs">
+                          Web3 Integration
+                        </Badge>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      {doc.description}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
       <Separator />
 
       {/* Generate Button */}
-      <div className="text-center space-y-6">
-        <div className="space-y-2">
-          <h3 className="text-xl font-semibold">Ready to Generate?</h3>
+      <div className="flex flex-col items-center space-y-6">
+        <div className="text-center space-y-2 max-w-2xl">
+          <h3 className="text-xl font-semibold">Ready to Generate Your Context Engineering Setup?</h3>
           <p className="text-muted-foreground">
             This will create all the rule files and documentation needed for your AI development workflow
           </p>
         </div>
+
+        <Card className="border-primary/20 bg-primary/5 p-4 max-w-2xl">
+          <p className="text-sm text-muted-foreground text-center">
+            💡 <strong>Pro Tip:</strong> Use your app's task list features to break down large tasks into subtasks intelligently.
+          </p>
+        </Card>
         
         <Button
           size="lg"
