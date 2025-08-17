@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Edit, ArrowRight, Download, Save, X, Check } from "lucide-react";
+import { Edit, ArrowRight, Download, Save, X, Check, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useProjectState } from "@/hooks/use-project-state";
 
@@ -25,13 +25,17 @@ export default function PRDPreviewClient({ projectId }: PRDPreviewClientProps) {
     isLoading, 
     isSaving,
     nextStep,
-    updatePRDContent
+    updatePRDContent,
+    updateMetadata
   } = useProjectState(projectId);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
   const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null);
+  const [isRefining, setIsRefining] = useState(false);
+  const [refinementQuestions, setRefinementQuestions] = useState<any[]>([]);
+  const [showRefinementQuestions, setShowRefinementQuestions] = useState(false);
 
   // Generate comprehensive PRD content if none exists
   const generatePRDContent = () => {
@@ -61,6 +65,7 @@ ${data.projectType === 'web3-dapp' ? `
 - **Wallet Integration**: ${data.walletIntegration || 'Not specified'}
 ${data.smartContractLanguage === 'solidity' ? `- **Multi-Chain Support**: ${data.multiChainSupport || 'Not specified'}` : ''}
 ${data.multiChainSupport === 'multi-chain' ? `- **Cross-Chain Solution**: ${data.crossChainSolution || 'Not specified'}` : ''}
+${data.oracleNeeded === 'yes' ? `- **Oracle Solution**: ${data.oracleSolution === 'other' ? data.oracleOther : data.oracleSolution || 'Not specified'}` : ''}
 ` : ''}
 
 ### 🎯 Core Features
@@ -124,6 +129,14 @@ ${data.additionalContext}
     }
   }, [isEditing, displayContent]);
 
+  // Update hasChanges when editContent or displayContent changes
+  useEffect(() => {
+    if (isEditing) {
+      const changed = editContent !== displayContent;
+      setHasChanges(changed);
+    }
+  }, [editContent, displayContent, isEditing]);
+
   // Auto-save functionality
   const autoSave = useCallback((content: string) => {
     if (content !== displayContent) {
@@ -136,22 +149,32 @@ ${data.additionalContext}
     if (isEditing) {
       // Cancel editing
       setIsEditing(false);
-      setEditContent("");
+      setEditContent(displayContent);
       setHasChanges(false);
     } else {
       // Start editing
       setIsEditing(true);
+      setEditContent(displayContent);
     }
   };
 
   // Handle save
-  const handleSave = () => {
-    updatePRDContent(editContent);
-    setIsEditing(false);
-    setHasChanges(false);
-    if (autoSaveTimer) {
-      clearTimeout(autoSaveTimer);
-      setAutoSaveTimer(null);
+  const handleSave = async () => {
+    try {
+      console.log('Saving PRD content:', editContent.substring(0, 100) + '...');
+      await updatePRDContent(editContent);
+      console.log('PRD content saved successfully');
+      setIsEditing(false);
+      setHasChanges(false);
+      if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+        setAutoSaveTimer(null);
+      }
+      // Show success feedback
+      alert('PRD saved successfully!');
+    } catch (error) {
+      console.error('Error saving PRD:', error);
+      alert('Failed to save PRD. Please try again.');
     }
   };
 
@@ -170,11 +193,43 @@ ${data.additionalContext}
     URL.revokeObjectURL(url);
   };
 
+  // Handle PRD refinement
+  const handleRefinePRD = async () => {
+    if (!project) return;
+    
+    setIsRefining(true);
+    try {
+      const response = await fetch('/api/llm/prd-refinement', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: project.id })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate refinement questions');
+      }
+
+      const data = await response.json();
+      setRefinementQuestions(data.questions);
+      setShowRefinementQuestions(true);
+      
+      // Update metadata to reflect refinement phase
+      updateMetadata({ 
+        currentStep: 'refinement-questions',
+        status: 'refining'
+      });
+    } catch (error) {
+      console.error('Refinement error:', error);
+      alert('Failed to generate refinement questions: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      setIsRefining(false);
+    }
+  };
+
   // Handle content change with auto-save
   const handleContentChange = (newContent: string) => {
     setEditContent(newContent);
-    const changed = newContent !== displayContent;
-    setHasChanges(changed);
 
     // Clear existing timer
     if (autoSaveTimer) {
@@ -182,7 +237,7 @@ ${data.additionalContext}
     }
 
     // Set new auto-save timer (3 seconds delay)
-    if (changed) {
+    if (newContent !== displayContent) {
       const timer = setTimeout(() => {
         autoSave(newContent);
       }, 3000);
@@ -251,6 +306,7 @@ ${data.additionalContext}
             <Download className="w-4 h-4" />
             Export PRD
           </Button>
+
         </div>
       </div>
 
@@ -331,12 +387,12 @@ ${data.additionalContext}
         </div>
         <div className="flex gap-2">
           <Button 
-            onClick={nextStep}
+            onClick={handleRefinePRD}
             className="flex items-center gap-2"
-            disabled={isSaving || isEditing}
+            disabled={isSaving || isEditing || isRefining}
           >
-            Continue
-            <ArrowRight className="w-4 h-4" />
+            <Sparkles className="w-4 h-4" />
+            {isRefining ? "Generating..." : "Refine PRD"}
           </Button>
         </div>
       </div>

@@ -198,6 +198,7 @@ export const fileStorage = {
       fs.writeFileSync(prdFile, content);
     } catch (error) {
       console.error('Error saving PRD content:', error);
+      throw error;
     }
   },
 

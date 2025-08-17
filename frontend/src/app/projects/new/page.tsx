@@ -35,6 +35,9 @@ const questionSchema = z.object({
   walletIntegration: z.string().optional(),
   multiChainSupport: z.string().optional(),
   crossChainSolution: z.string().optional(),
+  oracleNeeded: z.string().optional(),
+  oracleSolution: z.string().optional(),
+  oracleOther: z.string().optional(),
 });
 
 type QuestionFormData = z.infer<typeof questionSchema>;
@@ -43,7 +46,7 @@ const questions = [
   {
     id: 1,
     title: "Project Basics & Configuration",
-    fields: ["projectName", "projectType", "description", "smartContractLanguage", "authentication", "walletIntegration", "multiChainSupport", "crossChainSolution"]
+    fields: ["projectName", "projectType", "description", "smartContractLanguage", "authentication", "walletIntegration", "multiChainSupport", "crossChainSolution", "oracleNeeded", "oracleSolution", "oracleOther"]
   },
   {
     id: 2,
@@ -90,6 +93,9 @@ export default function NewProjectPage() {
       walletIntegration: "",
       multiChainSupport: "",
       crossChainSolution: "",
+      oracleNeeded: "",
+      oracleSolution: "",
+      oracleOther: "",
     },
   });
 
@@ -165,7 +171,10 @@ export default function NewProjectPage() {
             authentication: "Do you need authentication?",
             walletIntegration: "Which wallet integration will you use?",
             multiChainSupport: "Will you support multiple chains?",
-            crossChainSolution: "Which cross-chain solution will you use?"
+            crossChainSolution: "Which cross-chain solution will you use?",
+            oracleNeeded: "Do you need an Oracle?",
+            oracleSolution: "Which Oracle solution will you use?",
+            oracleOther: "Please specify your Oracle solution"
           },
           refinement: {}
         }
@@ -226,7 +235,10 @@ export default function NewProjectPage() {
             authentication: "Do you need authentication?",
             walletIntegration: "Which wallet integration will you use?",
             multiChainSupport: "Will you support multiple chains?",
-            crossChainSolution: "Which cross-chain solution will you use?"
+            crossChainSolution: "Which cross-chain solution will you use?",
+            oracleNeeded: "Do you need an Oracle?",
+            oracleSolution: "Which Oracle solution will you use?",
+            oracleOther: "Please specify your Oracle solution"
           },
           refinement: {}
         }
@@ -469,31 +481,132 @@ export default function NewProjectPage() {
                       />
 
                       {form.watch("multiChainSupport") === "multi-chain" && (
-                        <FormField
-                          control={form.control}
-                          name="crossChainSolution"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Cross-Chain Solution</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select cross-chain solution" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="layer-zero">Layer Zero</SelectItem>
-                                  <SelectItem value="hyperlane">HyperLane</SelectItem>
-                                  <SelectItem value="custom">Custom Solution</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormDescription>
-                                Which cross-chain solution will you use for multi-chain deployments?
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
+                        <>
+                          <FormField
+                            control={form.control}
+                            name="crossChainSolution"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Cross-Chain Solution</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select cross-chain solution" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="layer-zero">Layer Zero</SelectItem>
+                                    <SelectItem value="hyperlane">HyperLane</SelectItem>
+                                    <SelectItem value="custom">Custom Solution</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormDescription>
+                                  Which cross-chain solution will you use for multi-chain deployments?
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          {form.watch("crossChainSolution") === "layer-zero" && (
+                            <div className="p-4 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                              <h4 className="font-medium text-yellow-900 dark:text-yellow-100 mb-2">⚠️ Layer Zero Chain Support</h4>
+                              <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                                <strong>Important:</strong> Layer Zero does not support all EVM chains. Please research which chains are supported before proceeding.
+                              </p>
+                            </div>
                           )}
-                        />
+                        </>
+                      )}
+
+                      <FormField
+                        control={form.control}
+                        name="oracleNeeded"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Oracle Integration</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Do you need an Oracle?" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="yes">Yes, I need an Oracle</SelectItem>
+                                <SelectItem value="no">No, Oracle not required</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              Do you need external data feeds or off-chain computation for your smart contracts?
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {form.watch("oracleNeeded") === "yes" && (
+                        <>
+                          <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg mb-4">
+                            <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">🔍 Oracle Research Required</h4>
+                            <p className="text-sm text-blue-700 dark:text-blue-300 mb-2">
+                              <strong>Important:</strong> Please research which Oracle solutions are available on your target chains:
+                            </p>
+                            <ul className="text-xs text-blue-600 dark:text-blue-400 space-y-1">
+                              <li>• <strong>Chainlink:</strong> Not available on all chains</li>
+                              <li>• <strong>Acurast:</strong> Can run any JavaScript function in TEE, supports most chains</li>
+                              <li>• <strong>Other solutions:</strong> More Oracle solutions are coming to market</li>
+                            </ul>
+                          </div>
+
+                          <FormField
+                            control={form.control}
+                            name="oracleSolution"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Oracle Solution</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select Oracle solution" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="chainlink">Chainlink</SelectItem>
+                                    <SelectItem value="acurast">Acurast</SelectItem>
+                                    <SelectItem value="other">Other</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormDescription>
+                                  Which Oracle solution will you use for external data feeds?
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          {form.watch("oracleSolution") === "other" && (
+                            <FormField
+                              control={form.control}
+                              name="oracleOther"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Specify Oracle Solution</FormLabel>
+                                  <FormControl>
+                                    <Textarea 
+                                      placeholder="Please specify which Oracle solution you plan to use..."
+                                      className="min-h-[80px]"
+                                      {...field} 
+                                    />
+                                  </FormControl>
+                                  <FormDescription>
+                                    Describe the Oracle solution you plan to implement
+                                  </FormDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
+                        </>
                       )}
                     </>
                   )}
