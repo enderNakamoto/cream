@@ -33,26 +33,80 @@ export default function PRDPreviewClient({ projectId }: PRDPreviewClientProps) {
   const [hasChanges, setHasChanges] = useState(false);
   const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null);
 
-  // Generate mock PRD content if none exists
-  const displayContent = prdContent || (project && answers ? `# Product Requirements Document
+  // Generate comprehensive PRD content if none exists
+  const generatePRDContent = () => {
+    if (!project || !answers) return '';
+    
+    const data = answers.initialAnswers;
+    
+    return `# Product Requirements Document
 ## ${project.name}
 
-### Overview
-This is a generated PRD based on your project specifications.
+### 📋 Project Overview
+**Project Name**: ${data.projectName}  
+**Project Type**: ${data.projectType}  
+**Target Audience**: ${data.targetAudience || 'Not specified'}  
+**Description**: ${data.description}
 
-### Project Details
-- **Project Name**: ${answers.initialAnswers.projectName}
-- **Project Type**: ${answers.initialAnswers.projectType}
-- **Target Audience**: ${answers.initialAnswers.targetAudience}
-- **Complexity**: ${answers.initialAnswers.complexity}
-- **Timeline**: ${answers.initialAnswers.timeline}
+### 🏗️ Technical Architecture
 
-### Description
-${answers.initialAnswers.description}
+#### Tech Stack
+- **Frontend**: Next.js, Tailwind CSS, shadcn/ui
+- **Backend**: ${data.projectType === 'web3-dapp' ? 'Smart Contracts' : 'API/Serverless'}
+${data.projectType === 'web-app' && data.authentication === 'yes' ? '- **Authentication**: Clerk' : ''}
+${data.projectType === 'web3-dapp' ? `- **Smart Contract Language**: ${data.smartContractLanguage || 'Not specified'}` : ''}
 
-### Next Steps
-This is a draft PRD. You can edit it to add more details and refine the requirements.
-` : '');
+${data.projectType === 'web3-dapp' ? `
+#### Web3 Configuration
+- **Wallet Integration**: ${data.walletIntegration || 'Not specified'}
+${data.smartContractLanguage === 'solidity' ? `- **Multi-Chain Support**: ${data.multiChainSupport || 'Not specified'}` : ''}
+${data.multiChainSupport === 'multi-chain' ? `- **Cross-Chain Solution**: ${data.crossChainSolution || 'Not specified'}` : ''}
+` : ''}
+
+### 🎯 Core Features
+${data.coreFeatures}
+
+### 📅 Development Phases
+
+#### Phase 1
+${data.phase1}
+
+#### Phase 2
+${data.phase2}
+
+#### Phase 3
+${data.phase3}
+
+### 🎨 User Experience Design
+
+#### User Journeys & Page Structure
+${data.sampleUserJourneys}
+
+#### Key User Flows
+- **Landing Page**: User's first impression and entry point
+- **Navigation**: How users move between pages and features
+- **Core Actions**: Primary user interactions and goals
+- **Onboarding**: New user experience and feature discovery
+
+### 👥 Target Audience
+**Primary Audience**: ${data.targetAudience || 'Not specified'}
+
+#### User Personas
+- **Demographics**: Based on target audience selection
+- **Technical Level**: Varies by audience type
+- **Use Cases**: Specific to project requirements
+
+${data.additionalContext ? `
+### 🔧 Additional Context & Requirements
+${data.additionalContext}
+` : ''}
+
+---
+*Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}*
+`;
+  };
+
+  const displayContent = prdContent || (project && answers ? generatePRDContent() : '');
 
   // Check for edit parameter in URL and auto-switch to edit mode
   useEffect(() => {
@@ -99,6 +153,21 @@ This is a draft PRD. You can edit it to add more details and refine the requirem
       clearTimeout(autoSaveTimer);
       setAutoSaveTimer(null);
     }
+  };
+
+  // Handle export PRD
+  const handleExport = () => {
+    if (!project) return;
+    const content = isEditing ? editContent : displayContent;
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${project.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_prd.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   // Handle content change with auto-save
@@ -174,9 +243,13 @@ This is a draft PRD. You can edit it to add more details and refine the requirem
             {isEditing ? <Check className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
             {isEditing ? "Editing" : "Edit PRD"}
           </Button>
-          <Button variant="outline" className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2"
+            onClick={handleExport}
+          >
             <Download className="w-4 h-4" />
-            Export
+            Export PRD
           </Button>
         </div>
       </div>

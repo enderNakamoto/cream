@@ -22,9 +22,19 @@ const questionSchema = z.object({
   projectType: z.string().min(1, "Please select a project type"),
   smartContractLanguage: z.string().optional(),
   description: z.string().min(5, "Description must be at least 5 characters"),
+  coreFeatures: z.string().min(5, "Core features must be at least 5 characters"),
+  phase1: z.string().min(10, "Phase 1 must be at least 10 characters"),
+  phase2: z.string().min(10, "Phase 2 must be at least 10 characters"),
+  phase3: z.string().min(10, "Phase 3 must be at least 10 characters"),
+  sampleUserJourneys: z.string().min(10, "Please provide sample user journeys"),
+  additionalContext: z.string().min(5, "Additional context must be at least 5 characters"),
   targetAudience: z.string().min(1, "Please select target audience"),
-  complexity: z.string().min(1, "Please select complexity level"),
-  timeline: z.string().min(1, "Please select timeline"),
+  // Web App specific fields
+  authentication: z.string().optional(),
+  // Web3 DApp specific fields
+  walletIntegration: z.string().optional(),
+  multiChainSupport: z.string().optional(),
+  crossChainSolution: z.string().optional(),
 });
 
 type QuestionFormData = z.infer<typeof questionSchema>;
@@ -32,13 +42,23 @@ type QuestionFormData = z.infer<typeof questionSchema>;
 const questions = [
   {
     id: 1,
-    title: "Project Basics",
-    fields: ["projectName", "projectType", "description"]
+    title: "Project Basics & Configuration",
+    fields: ["projectName", "projectType", "description", "smartContractLanguage", "authentication", "walletIntegration", "multiChainSupport", "crossChainSolution"]
   },
   {
     id: 2,
-    title: "Project Details",
-    fields: ["targetAudience", "complexity", "timeline"]
+    title: "Project Planning",
+    fields: ["coreFeatures", "phase1", "phase2", "phase3"]
+  },
+  {
+    id: 3,
+    title: "User Experience Design",
+    fields: ["sampleUserJourneys"]
+  },
+  {
+    id: 4,
+    title: "Additional Details",
+    fields: ["targetAudience", "additionalContext"]
   }
 ];
 
@@ -59,9 +79,17 @@ export default function NewProjectPage() {
       projectType: "",
       smartContractLanguage: "",
       description: "",
+      coreFeatures: "",
+      phase1: "",
+      phase2: "",
+      phase3: "",
+      sampleUserJourneys: "",
+      additionalContext: "",
       targetAudience: "",
-      complexity: "",
-      timeline: "",
+      authentication: "",
+      walletIntegration: "",
+      multiChainSupport: "",
+      crossChainSolution: "",
     },
   });
 
@@ -127,9 +155,17 @@ export default function NewProjectPage() {
             projectType: "What type of project are you building?",
             smartContractLanguage: "What smart contract language will you use?",
             description: "Describe your project in detail",
+            coreFeatures: "What are the core features for MVP?",
+            phase1: "What will be accomplished in Phase 1?",
+            phase2: "What will be accomplished in Phase 2?",
+            phase3: "What will be accomplished in Phase 3?",
+            sampleUserJourneys: "What are the sample user journeys?",
+            additionalContext: "What additional context is needed?",
             targetAudience: "Who is your target audience?",
-            complexity: "What is the project complexity?",
-            timeline: "What is your development timeline?"
+            authentication: "Do you need authentication?",
+            walletIntegration: "Which wallet integration will you use?",
+            multiChainSupport: "Will you support multiple chains?",
+            crossChainSolution: "Which cross-chain solution will you use?"
           },
           refinement: {}
         }
@@ -180,9 +216,17 @@ export default function NewProjectPage() {
             projectType: "What type of project are you building?",
             smartContractLanguage: "What smart contract language will you use?",
             description: "Describe your project in detail",
+            coreFeatures: "What are the core features for MVP?",
+            phase1: "What will be accomplished in Phase 1?",
+            phase2: "What will be accomplished in Phase 2?",
+            phase3: "What will be accomplished in Phase 3?",
+            sampleUserJourneys: "What are the sample user journeys?",
+            additionalContext: "What additional context is needed?",
             targetAudience: "Who is your target audience?",
-            complexity: "What is the project complexity?",
-            timeline: "What is your development timeline?"
+            authentication: "Do you need authentication?",
+            walletIntegration: "Which wallet integration will you use?",
+            multiChainSupport: "Will you support multiple chains?",
+            crossChainSolution: "Which cross-chain solution will you use?"
           },
           refinement: {}
         }
@@ -283,11 +327,7 @@ export default function NewProjectPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="web-app">Web Application</SelectItem>
-                            <SelectItem value="mobile-app">Mobile Application</SelectItem>
-                            <SelectItem value="api">API/Backend Service</SelectItem>
-                            <SelectItem value="desktop-app">Desktop Application</SelectItem>
-                            <SelectItem value="library">Library/Package</SelectItem>
+                            <SelectItem value="web-app">Web App</SelectItem>
                             <SelectItem value="web3-dapp">Web3 DApp</SelectItem>
                           </SelectContent>
                         </Select>
@@ -298,6 +338,15 @@ export default function NewProjectPage() {
                       </FormItem>
                     )}
                   />
+
+                  {/* Tech Stack Information */}
+                  <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">🚀 Tech Stack Information</h4>
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      We will be building your project frontend with <strong>Next.js</strong>, <strong>Tailwind CSS</strong>, and <strong>shadcn/ui</strong>. 
+                      This is a very opinionated guided helper to ensure consistency and best practices.
+                    </p>
+                  </div>
 
                   {form.watch("projectType") === "web3-dapp" && (
                     <FormField
@@ -326,6 +375,127 @@ export default function NewProjectPage() {
                         </FormItem>
                       )}
                     />
+                  )}
+
+                  {form.watch("projectType") === "web-app" && (
+                    <FormField
+                      control={form.control}
+                      name="authentication"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Authentication</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select authentication option" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="yes">Yes, I need authentication</SelectItem>
+                              <SelectItem value="no">No, authentication not required</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            Do you need user authentication for your web app?
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  {form.watch("authentication") === "yes" && (
+                    <div className="p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+                      <h4 className="font-medium text-green-900 dark:text-green-100 mb-2">🔐 Authentication Setup</h4>
+                      <p className="text-sm text-green-700 dark:text-green-300">
+                        We will be using <strong>Clerk</strong> for authentication. Clerk provides a complete authentication solution with pre-built components and APIs.
+                      </p>
+                    </div>
+                  )}
+
+                  {form.watch("projectType") === "web3-dapp" && (
+                    <FormField
+                      control={form.control}
+                      name="walletIntegration"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Wallet Integration</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select wallet integration" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="dynamic">Dynamic (Recommended)</SelectItem>
+                              <SelectItem value="rainbow-kit">Rainbow Kit</SelectItem>
+                              <SelectItem value="custom">Custom Implementation</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            Which wallet integration library will you use for UI integration with smart contracts?
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  {form.watch("smartContractLanguage") === "solidity" && (
+                    <>
+                      <FormField
+                        control={form.control}
+                        name="multiChainSupport"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Multi-Chain Support</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select multi-chain support" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="single-chain">Single Chain (Ethereum Mainnet)</SelectItem>
+                                <SelectItem value="multi-chain">Multiple EVM Chains</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              Will you deploy smart contracts on multiple EVM chains?
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {form.watch("multiChainSupport") === "multi-chain" && (
+                        <FormField
+                          control={form.control}
+                          name="crossChainSolution"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Cross-Chain Solution</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select cross-chain solution" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="layer-zero">Layer Zero</SelectItem>
+                                  <SelectItem value="hyperlane">HyperLane</SelectItem>
+                                  <SelectItem value="custom">Custom Solution</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormDescription>
+                                Which cross-chain solution will you use for multi-chain deployments?
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
+                    </>
                   )}
 
                   <FormField
@@ -358,6 +528,171 @@ export default function NewProjectPage() {
                 <>
                   <FormField
                     control={form.control}
+                    name="coreFeatures"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Core Features</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="List the core features needed for MVP..."
+                            className="min-h-[100px]"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Keep this simple and only add what is needed for MVP (minimum 5 characters)
+                        </FormDescription>
+                        <div className="text-xs text-muted-foreground">
+                          {field.value?.length || 0}/5 characters
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Development Phases Section */}
+                  <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg mb-6">
+                    <h4 className="font-medium text-amber-900 dark:text-amber-100 mb-2">⏰ Take Your Time to Plan</h4>
+                    <p className="text-sm text-amber-700 dark:text-amber-300">
+                      Spend time now to think about your development phases. This planning will save significant time later when building your project. 
+                      Clear phases help with project management and development efficiency.
+                    </p>
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="phase1"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phase 1</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Describe Phase 1 of your project development..."
+                            className="min-h-[100px]"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          What will be accomplished in Phase 1? (minimum 10 characters)
+                        </FormDescription>
+                        <div className="text-xs text-muted-foreground">
+                          {field.value?.length || 0}/10 characters
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="phase2"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phase 2</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Describe Phase 2 of your project development..."
+                            className="min-h-[100px]"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          What will be accomplished in Phase 2? (minimum 10 characters)
+                        </FormDescription>
+                        <div className="text-xs text-muted-foreground">
+                          {field.value?.length || 0}/10 characters
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="phase3"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phase 3</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Describe Phase 3 of your project development..."
+                            className="min-h-[100px]"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          What will be accomplished in Phase 3? (minimum 10 characters)
+                        </FormDescription>
+                        <div className="text-xs text-muted-foreground">
+                          {field.value?.length || 0}/10 characters
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+
+                </>
+              )}
+
+              {currentStep === 3 && (
+                <>
+                  {/* User Experience Design Section */}
+                  <div className="p-4 bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg mb-6">
+                    <h4 className="font-medium text-purple-900 dark:text-purple-100 mb-2">🎨 User Experience Design</h4>
+                    <p className="text-sm text-purple-700 dark:text-purple-300 mb-3">
+                      <strong>This step is crucial!</strong> The difference between a good app and a bad app often lies in how well you think through the user experience. 
+                      Take time to plan your pages, user flows, and overall structure.
+                    </p>
+                    <div className="bg-white dark:bg-gray-800 p-3 rounded border">
+                      <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
+                        <strong>💡 Get Inspired:</strong> Check out <a href="https://dribbble.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">Dribbble</a> for amazing UI/UX inspiration from top designers worldwide.
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        Look for patterns in navigation, layouts, and user flows that work well for your type of application.
+                      </p>
+                    </div>
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="sampleUserJourneys"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sample User Journeys & Page Structure</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Think through and describe:
+• What pages will your app have?
+• How will users navigate between pages?
+• What's the main user flow from landing to completing their goal?
+• What actions can users take on each page?
+• How will users discover features?
+• What's the onboarding experience like?
+
+Be specific about the user journey and page structure..."
+                            className="min-h-[200px]"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Plan your user experience carefully. Think through pages, navigation, and user flows in advance. 
+                          This planning will make the difference between a good app and a bad app. (minimum 10 characters)
+                        </FormDescription>
+                        <div className="text-xs text-muted-foreground">
+                          {field.value?.length || 0}/10 characters
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
+
+              {currentStep === 4 && (
+                <>
+                  <FormField
+                    control={form.control}
                     name="targetAudience"
                     render={({ field }) => (
                       <FormItem>
@@ -386,60 +721,31 @@ export default function NewProjectPage() {
 
                   <FormField
                     control={form.control}
-                    name="complexity"
+                    name="additionalContext"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Project Complexity</FormLabel>
-                        <RadioGroup onValueChange={field.onChange} defaultValue={field.value}>
-                          <div className="space-y-3">
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="simple" id="simple" />
-                              <Label htmlFor="simple">Simple - Basic features, single purpose</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="moderate" id="moderate" />
-                              <Label htmlFor="moderate">Moderate - Multiple features, some complexity</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="complex" id="complex" />
-                              <Label htmlFor="complex">Complex - Advanced features, multiple integrations</Label>
-                            </div>
-                          </div>
-                        </RadioGroup>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="timeline"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Development Timeline</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select timeline" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="1-2-weeks">1-2 weeks</SelectItem>
-                            <SelectItem value="1-month">1 month</SelectItem>
-                            <SelectItem value="2-3-months">2-3 months</SelectItem>
-                            <SelectItem value="3-6-months">3-6 months</SelectItem>
-                            <SelectItem value="6-months-plus">6+ months</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <FormLabel>Additional Context</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Any additional context, constraints, or requirements..."
+                            className="min-h-[100px]"
+                            {...field} 
+                          />
+                        </FormControl>
                         <FormDescription>
-                          What's your expected development timeline?
+                          Share any additional context, constraints, or specific requirements (minimum 5 characters)
                         </FormDescription>
+                        <div className="text-xs text-muted-foreground">
+                          {field.value?.length || 0}/5 characters
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </>
               )}
+
+
             </CardContent>
           </Card>
 
