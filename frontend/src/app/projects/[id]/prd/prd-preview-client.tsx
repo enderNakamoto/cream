@@ -33,12 +33,7 @@ export default function PRDPreviewClient({ projectId }: PRDPreviewClientProps) {
   const [editContent, setEditContent] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
   const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null);
-  const [isRefining, setIsRefining] = useState(false);
-  const [refinementQuestions, setRefinementQuestions] = useState<any[]>([]);
-  const [showRefinementQuestions, setShowRefinementQuestions] = useState(false);
-  const [refinementAnswers, setRefinementAnswers] = useState<Record<number, string>>({});
-  const [refinementStep, setRefinementStep] = useState(1);
-  const [isSavingRefinements, setIsSavingRefinements] = useState(false);
+
 
   // Generate comprehensive PRD content if none exists
   const generatePRDContent = () => {
@@ -124,43 +119,7 @@ ${data.additionalContext}
     }
   }, [searchParams, isEditing]);
 
-  // Load existing refinement questions and answers if they exist
-  useEffect(() => {
-    const loadRefinementData = async () => {
-      if (!project || !metadata) return;
-      
-      // Check if refinement questions have been generated
-      if (metadata.refinementQuestionsGenerated) {
-        try {
-          const response = await fetch(`/api/projects/${project.id}/refinements`);
-          if (response.ok) {
-            const data = await response.json();
-            
-            // Load questions if they exist
-            if (data.questions && data.questions.length > 0) {
-              setRefinementQuestions(data.questions);
-              setShowRefinementQuestions(true);
-            }
-            
-            // Load answers if they exist
-            if (data.answers && data.answers.length > 0) {
-              const answersMap: Record<number, string> = {};
-              data.answers.forEach((answer: any) => {
-                if (!answer.skipped) {
-                  answersMap[answer.questionId] = answer.answer;
-                }
-              });
-              setRefinementAnswers(answersMap);
-            }
-          }
-        } catch (error) {
-          console.error('Error loading refinement data:', error);
-        }
-      }
-    };
 
-    loadRefinementData();
-  }, [project, metadata]);
 
   // Initialize edit content when entering edit mode
   useEffect(() => {
@@ -234,160 +193,7 @@ ${data.additionalContext}
     URL.revokeObjectURL(url);
   };
 
-  // Handle PRD refinement
-  const handleRefinePRD = async () => {
-    if (!project || !metadata) return;
-    
-    // Check if refinement questions already exist
-    if (metadata.refinementQuestionsGenerated) {
-      // Load existing questions instead of generating new ones
-      try {
-        const response = await fetch(`/api/projects/${project.id}/refinements`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.questions && data.questions.length > 0) {
-            setRefinementQuestions(data.questions);
-            setShowRefinementQuestions(true);
-            
-            // Load existing answers if any
-            if (data.answers && data.answers.length > 0) {
-              const answersMap: Record<number, string> = {};
-              data.answers.forEach((answer: any) => {
-                if (!answer.skipped) {
-                  answersMap[answer.questionId] = answer.answer;
-                }
-              });
-              setRefinementAnswers(answersMap);
-            }
-            
-            // Update metadata to reflect refinement phase
-            updateMetadata({ 
-              currentStep: 'refinement-questions',
-              status: 'refining'
-            });
-            return;
-          }
-        }
-      } catch (error) {
-        console.error('Error loading existing refinement questions:', error);
-      }
-    }
-    
-    // Generate new questions if they don't exist
-    setIsRefining(true);
-    try {
-      const response = await fetch('/api/llm/prd-refinement', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId: project.id })
-      });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to generate refinement questions');
-      }
-
-      const data = await response.json();
-      setRefinementQuestions(data.questions);
-      setShowRefinementQuestions(true);
-      
-      // Update metadata to reflect refinement phase
-      updateMetadata({ 
-        currentStep: 'refinement-questions',
-        status: 'refining'
-      });
-    } catch (error) {
-      console.error('Refinement error:', error);
-      alert('Failed to generate refinement questions: ' + (error instanceof Error ? error.message : 'Unknown error'));
-    } finally {
-      setIsRefining(false);
-    }
-  };
-
-  // Handle refinement answer change
-  const handleRefinementAnswerChange = (questionId: number, answer: string) => {
-    setRefinementAnswers(prev => ({
-      ...prev,
-      [questionId]: answer
-    }));
-  };
-
-  // Handle skip question
-  const handleSkipQuestion = (questionId: number) => {
-    setRefinementAnswers(prev => ({
-      ...prev,
-      [questionId]: ''
-    }));
-  };
-
-  // Handle save refinement answers
-  const handleSaveRefinements = async () => {
-    if (!project) return;
-    
-    setIsSavingRefinements(true);
-    try {
-      const answers = refinementQuestions.map(question => ({
-        questionId: question.id,
-        question: question.question,
-        answer: refinementAnswers[question.id] || '',
-        skipped: !refinementAnswers[question.id],
-        timestamp: new Date().toISOString()
-      }));
-
-      const response = await fetch(`/api/projects/${project.id}/refinements`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save refinement answers');
-      }
-
-      alert('Refinement answers saved successfully!');
-      setShowRefinementQuestions(false);
-      setRefinementStep(1);
-      setRefinementAnswers({});
-      
-      // Update metadata to move to next step
-      updateMetadata({ 
-        currentStep: 'processing',
-        status: 'processing'
-      });
-    } catch (error) {
-      console.error('Error saving refinements:', error);
-      alert('Failed to save refinement answers. Please try again.');
-    } finally {
-      setIsSavingRefinements(false);
-    }
-  };
-
-  // Get current step questions (5 questions per step)
-  const getCurrentStepQuestions = () => {
-    const startIndex = (refinementStep - 1) * 5;
-    const endIndex = startIndex + 5;
-    const questions = refinementQuestions.slice(startIndex, endIndex);
-    console.log('getCurrentStepQuestions:', {
-      refinementStep,
-      startIndex,
-      endIndex,
-      totalQuestions: refinementQuestions.length,
-      questionsInStep: questions.length,
-      questionIds: questions.map(q => q.id)
-    });
-    return questions;
-  };
-
-  const totalRefinementSteps = Math.ceil(refinementQuestions.length / 5);
-  
-  // Debug logging
-  console.log('Refinement Questions Debug:', {
-    totalQuestions: refinementQuestions.length,
-    totalSteps: totalRefinementSteps,
-    currentStep: refinementStep,
-    currentQuestions: getCurrentStepQuestions().length,
-    questions: refinementQuestions.map(q => ({ id: q.id, question: q.question.substring(0, 50) + '...' }))
-  });
 
   // Handle content change with auto-save
   const handleContentChange = (newContent: string) => {
@@ -440,6 +246,14 @@ ${data.additionalContext}
       </div>
     );
   }
+
+  // Debug metadata state
+  console.log('PRD Preview - Metadata Debug:', {
+    projectId,
+    metadata,
+    refinementQuestionsGenerated: metadata?.refinementQuestionsGenerated,
+    refinementQuestionsGeneratedAt: metadata?.refinementQuestionsGeneratedAt
+  });
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -538,158 +352,7 @@ ${data.additionalContext}
         </CardContent>
       </Card>
 
-      {/* Refinement Questions */}
-      {showRefinementQuestions && refinementQuestions.length > 0 && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Refinement Questions</CardTitle>
-                          <div className="flex items-center gap-2">
-              <Badge variant="outline">
-                Step {refinementStep} of {totalRefinementSteps}
-              </Badge>
-              <Badge variant="secondary">
-                {refinementQuestions.length} questions total
-              </Badge>
-              <Badge variant="default">
-                {Object.keys(refinementAnswers).filter(id => refinementAnswers[parseInt(id)]).length} answered
-              </Badge>
-            </div>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Please answer these questions to help refine your PRD. You can skip questions you're unsure about.
-              {metadata?.refinementQuestionsGeneratedAt && (
-                <span className="block mt-1">
-                  Questions generated on {new Date(metadata.refinementQuestionsGeneratedAt).toLocaleString()}
-                </span>
-              )}
-            </p>
-            
-            {/* Step Progress Indicator */}
-            <div className="flex items-center gap-2 mt-4">
-              {Array.from({ length: totalRefinementSteps }, (_, i) => (
-                <div
-                  key={i}
-                  className={`h-2 flex-1 rounded-full transition-colors ${
-                    i + 1 === refinementStep
-                      ? 'bg-primary'
-                      : i + 1 < refinementStep
-                      ? 'bg-primary/50'
-                      : 'bg-muted'
-                  }`}
-                />
-              ))}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {getCurrentStepQuestions().map((question, index) => (
-                <div key={question.id} className="space-y-3 p-4 border rounded-lg">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="font-medium text-sm">
-                        Question {question.id}: {question.question}
-                      </h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="outline" className="text-xs">
-                          {question.category}
-                        </Badge>
-                        <Badge 
-                          variant={question.priority === 'high' ? 'destructive' : question.priority === 'medium' ? 'default' : 'secondary'}
-                          className="text-xs"
-                        >
-                          {question.priority} priority
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Textarea
-                      placeholder="Enter your answer here..."
-                      value={refinementAnswers[question.id] || ''}
-                      onChange={(e) => handleRefinementAnswerChange(question.id, e.target.value)}
-                      className="min-h-[80px]"
-                    />
-                    <div className="flex justify-end">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleSkipQuestion(question.id)}
-                        className="text-xs"
-                      >
-                        Skip Question
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Navigation */}
-            <div className="flex items-center justify-between mt-6 pt-4 border-t">
-              <div className="flex items-center gap-4">
-                <div className="flex gap-2">
-                                  <Button
-                  variant="outline"
-                  onClick={() => {
-                    console.log('Previous button clicked. Current step:', refinementStep);
-                    setRefinementStep(prev => {
-                      const prevStep = Math.max(1, prev - 1);
-                      console.log('Setting step to:', prevStep);
-                      return prevStep;
-                    });
-                  }}
-                  disabled={refinementStep === 1}
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Previous
-                </Button>
-                                  <Button
-                  variant="outline"
-                  onClick={() => {
-                    console.log('Next button clicked. Current step:', refinementStep, 'Total steps:', totalRefinementSteps);
-                    setRefinementStep(prev => {
-                      const nextStep = Math.min(totalRefinementSteps, prev + 1);
-                      console.log('Setting step to:', nextStep);
-                      return nextStep;
-                    });
-                  }}
-                  disabled={refinementStep === totalRefinementSteps}
-                >
-                  Next
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  Step {refinementStep} of {totalRefinementSteps} • 
-                  Questions {((refinementStep - 1) * 5) + 1}-{Math.min(refinementStep * 5, refinementQuestions.length)} of {refinementQuestions.length}
-                </div>
-              </div>
-              
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowRefinementQuestions(false);
-                    setRefinementStep(1);
-                    setRefinementAnswers({});
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleSaveRefinements}
-                  disabled={isSavingRefinements}
-                  className="flex items-center gap-2"
-                >
-                  {isSavingRefinements ? "Saving..." : "Save Answers & Continue"}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      
 
       {/* Actions */}
       <div className="flex items-center justify-between">
@@ -700,17 +363,39 @@ ${data.additionalContext}
             </Button>
           </Link>
         </div>
-        <div className="flex gap-2">
-          {!showRefinementQuestions && (
+        <div className="flex flex-col gap-2">
+          <Link href={`/projects/${project.id}/refinements`}>
             <Button 
-              onClick={handleRefinePRD}
               className="flex items-center gap-2"
-              disabled={isSaving || isEditing || isRefining}
+              disabled={isSaving || isEditing}
             >
               <Sparkles className="w-4 h-4" />
-              {isRefining ? "Loading..." : metadata?.refinementQuestionsGenerated ? "Continue Refinement" : "Refine PRD"}
+              {metadata?.refinementQuestionsGenerated ? "View Refinement Questions" : "Generate Refinement Questions"}
             </Button>
-          )}
+          </Link>
+
+          <div className="text-sm text-muted-foreground max-w-md">
+            {metadata?.refinementQuestionsGenerated ? (
+              <div className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <p className="font-medium text-green-600">Refinement questions ready!</p>
+                  <p>Click to view and answer the 10 AI-generated questions to improve your PRD.</p>
+                  {metadata.refinementQuestionsGeneratedAt && (
+                    <p className="text-xs mt-1">Generated on {new Date(metadata.refinementQuestionsGeneratedAt).toLocaleString()}</p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <p className="font-medium text-blue-600">Ready to refine your PRD?</p>
+                  <p>Generate 10 AI-powered questions to help improve your product requirements document.</p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

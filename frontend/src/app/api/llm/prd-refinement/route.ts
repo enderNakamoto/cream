@@ -144,11 +144,42 @@ Generate exactly 10 questions in JSON format as specified in the system prompt.`
       // Update metadata to mark questions as generated
       const metadataPath = path.join(process.cwd(), '..', 'storage', 'projects', projectId, 'metadata.json');
       try {
-        const metadataContent = await fs.readFile(metadataPath, 'utf-8');
-        const metadata = JSON.parse(metadataContent);
+        let metadata;
+        try {
+          const metadataContent = await fs.readFile(metadataPath, 'utf-8');
+          metadata = JSON.parse(metadataContent);
+        } catch (readError) {
+          console.log('Metadata file not found, creating new metadata');
+          // Create new metadata if file doesn't exist
+          metadata = {
+            projectId,
+            currentStep: 'refinement-questions',
+            prdVersion: 0,
+            lastEdited: new Date().toISOString(),
+            answersVersion: 0,
+            status: 'refining'
+          };
+        }
+        
+        // Update the metadata
         metadata.refinementQuestionsGenerated = true;
         metadata.refinementQuestionsGeneratedAt = new Date().toISOString();
+        metadata.currentStep = 'refinement-questions';
+        metadata.status = 'refining';
+        metadata.lastEdited = new Date().toISOString();
+        
+        // Ensure the directory exists
+        const projectDir = path.dirname(metadataPath);
+        await fs.mkdir(projectDir, { recursive: true });
+        
         await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2));
+        console.log('Metadata updated successfully:', {
+          projectId,
+          refinementQuestionsGenerated: metadata.refinementQuestionsGenerated,
+          refinementQuestionsGeneratedAt: metadata.refinementQuestionsGeneratedAt,
+          currentStep: metadata.currentStep,
+          status: metadata.status
+        });
       } catch (metadataError) {
         console.error('Failed to update metadata:', metadataError);
         // Continue anyway - questions are still returned
