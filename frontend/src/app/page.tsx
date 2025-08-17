@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Play } from "lucide-react";
+import Link from "next/link";
 
 export default function HomePage() {
   return (
@@ -17,9 +18,11 @@ export default function HomePage() {
             Stop prompting like it's 2024
           </p>
         </div>
-        <Button size="lg" className="text-lg px-8 py-6">
-          Get Started
-        </Button>
+        <Link href="/projects">
+          <Button size="lg" className="text-lg px-8 py-6">
+            Get Started
+          </Button>
+        </Link>
       </section>
 
       {/* Context Engineering Section */}
@@ -67,9 +70,11 @@ export default function HomePage() {
           </p>
         </div>
         <div className="flex gap-4 justify-center">
-          <Button size="lg" className="text-lg px-8 py-6">
-            Start Your First Project
-          </Button>
+          <Link href="/projects/new">
+            <Button size="lg" className="text-lg px-8 py-6">
+              Start Your First Project
+            </Button>
+          </Link>
           <Button size="lg" variant="outline" className="text-lg px-8 py-6">
             Learn More
           </Button>
