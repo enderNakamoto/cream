@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -14,6 +15,7 @@ import { ChevronLeft, ChevronRight, Save } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { projectStorage, ProjectAnswers } from "@/lib/project-storage";
 
 const questionSchema = z.object({
   projectName: z.string().min(1, "Project name is required"),
@@ -41,7 +43,9 @@ const questions = [
 ];
 
 export default function NewProjectPage() {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
+  const [projectId, setProjectId] = useState<string | null>(null);
   const totalSteps = questions.length;
 
   const form = useForm<QuestionFormData>({
@@ -57,9 +61,45 @@ export default function NewProjectPage() {
     },
   });
 
+  // Initialize project when component mounts
+  useEffect(() => {
+    if (!projectId) {
+      const newProject = projectStorage.createNewProject("New Project");
+      setProjectId(newProject.id);
+    }
+  }, [projectId]);
+
   const onSubmit = (data: QuestionFormData) => {
-    console.log("Form data:", data);
-    // Handle form submission
+    if (!projectId) return;
+
+    // Update project name
+    projectStorage.updateProject(projectId, { name: data.projectName });
+
+    // Create answers structure
+    const answers: ProjectAnswers = {
+      projectId,
+      version: 1,
+      initialAnswers: data,
+      refinementAnswers: {},
+      questions: {
+        initial: {
+          projectName: "What is your project name?",
+          projectType: "What type of project are you building?",
+          smartContractLanguage: "What smart contract language will you use?",
+          description: "Describe your project in detail",
+          targetAudience: "Who is your target audience?",
+          complexity: "What is the project complexity?",
+          timeline: "What is your development timeline?"
+        },
+        refinement: {}
+      }
+    };
+
+    // Save answers
+    projectStorage.saveProjectAnswers(answers);
+
+    // Navigate to PRD preview
+    router.push(`/projects/${projectId}/prd`);
   };
 
   const nextStep = () => {
