@@ -39,6 +39,8 @@ export default function GenerateDocsClient({ projectId }: GenerateDocsClientProp
   const [metadata, setMetadata] = useState<any>(null);
   const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
   const [isDownloadingCursor, setIsDownloadingCursor] = useState(false);
+  const [isDownloadingNora, setIsDownloadingNora] = useState(false);
+  const [previewModal, setPreviewModal] = useState<{ open: boolean; content: string; filename: string }>({ open: false, content: '', filename: '' });
 
   // Initialize file statuses
   useEffect(() => {
@@ -54,9 +56,17 @@ export default function GenerateDocsClient({ projectId }: GenerateDocsClientProp
   const loadExistingFiles = async () => {
     try {
       const metadata = await apiStorage.getProjectMetadata(projectId);
+      const newStatuses = { ...noraFileStatuses };
+      
+      // Initialize all files with 'not-generated' status first
+      NORA_DOC_FILES.forEach(file => {
+        if (!newStatuses[file.filename]) {
+          newStatuses[file.filename] = { status: 'not-generated' };
+        }
+      });
+      
+      // Then update with any existing generated files
       if (metadata?.noraGeneratedFiles) {
-        const newStatuses = { ...noraFileStatuses };
-        
         for (const filename of metadata.noraGeneratedFiles) {
           try {
             const fileData = await apiStorage.getDocFileContent(projectId, filename, 'nora');
@@ -73,8 +83,10 @@ export default function GenerateDocsClient({ projectId }: GenerateDocsClientProp
             };
           }
         }
-        setNoraFileStatuses(newStatuses);
       }
+      
+      console.log('File statuses after loading:', newStatuses);
+      setNoraFileStatuses(newStatuses);
     } catch (error) {
       console.error('Error loading existing files:', error);
     }
@@ -216,6 +228,36 @@ export default function GenerateDocsClient({ projectId }: GenerateDocsClientProp
 
   const selectedIDEs = metadata?.selectedIDEs || [];
 
+  // Check if all Nora files are generated
+  const allNoraFilesGenerated = NORA_DOC_FILES.every(file => 
+    noraFileStatuses[file.filename]?.status === 'generated'
+  );
+
+  const handleDownloadAllNora = async () => {
+    setIsDownloadingNora(true);
+    try {
+      const blob = await apiStorage.downloadNoraPackage(projectId);
+      
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `nora-project-${projectId}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      console.error('Error downloading Nora package:', error);
+      setErrorDialog({
+        open: true,
+        message: `Failed to download Nora package: ${error.message}`
+      });
+    } finally {
+      setIsDownloadingNora(false);
+    }
+  };
+
   const handleDownloadCursor = async () => {
     setIsDownloadingCursor(true);
     try {
@@ -286,42 +328,42 @@ export default function GenerateDocsClient({ projectId }: GenerateDocsClientProp
               </CardTitle>
               <CardDescription>
                 {selectedIDEs.includes('cursor') 
-                  ? 'Cursor file generation will be implemented in a future update.'
+                  ? 'Download your Cursor project package with PRD and rule files.'
                   : 'Cursor is not selected for this project.'
                 }
               </CardDescription>
             </CardHeader>
             <CardContent>
               {selectedIDEs.includes('cursor') ? (
-                <div className="text-center py-16">
-                  <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <Code className="w-12 h-12 text-blue-600" />
+                <div className="text-center py-12">
+                  <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Code className="w-10 h-10 text-blue-600" />
                   </div>
-                  <h3 className="text-2xl font-bold mb-4">Download Cursor Package</h3>
-                  <p className="text-muted-foreground mb-8 text-lg">
+                  <h3 className="text-xl font-semibold mb-3">Download Cursor Package</h3>
+                  <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                     Download a zip file containing your PRD and Cursor rule files.
                   </p>
                   <Button 
                     onClick={handleDownloadCursor}
                     disabled={isDownloadingCursor}
-                    size="lg"
-                    className="flex items-center gap-3 px-12 py-8 text-xl font-semibold h-auto"
+                    size="default"
+                    className="flex items-center gap-2"
                   >
                     {isDownloadingCursor ? (
                       <>
-                        <Loader2 className="w-6 h-6 animate-spin" />
+                        <Loader2 className="w-4 h-4 animate-spin" />
                         Creating Package...
                       </>
                     ) : (
                       <>
-                        <Download className="w-6 h-6" />
+                        <Download className="w-4 h-4" />
                         Download for Cursor
                       </>
                     )}
                   </Button>
                 </div>
               ) : (
-                <div className="text-center py-8">
+                <div className="text-center py-12">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Code className="w-8 h-8 text-gray-400" />
                   </div>
@@ -351,7 +393,34 @@ export default function GenerateDocsClient({ projectId }: GenerateDocsClientProp
             </CardHeader>
             <CardContent>
               {selectedIDEs.includes('nora') ? (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-lg font-semibold">Documentation Files</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Generate and manage your Nora documentation files
+                      </p>
+                    </div>
+                    <Button
+                      onClick={handleDownloadAllNora}
+                      disabled={!allNoraFilesGenerated || isDownloadingNora}
+                      size="lg"
+                      className="flex items-center gap-2"
+                    >
+                      {isDownloadingNora ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Creating Package...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-5 h-5" />
+                          Download All ({NORA_DOC_FILES.filter(file => noraFileStatuses[file.filename]?.status === 'generated').length}/{NORA_DOC_FILES.length})
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {NORA_DOC_FILES.map((file) => {
                     const status = noraFileStatuses[file.filename];
                     
@@ -379,8 +448,16 @@ export default function GenerateDocsClient({ projectId }: GenerateDocsClientProp
                           {status?.status === 'generated' && !status.isEditing && (
                             <div className="space-y-3">
                               <div className="flex items-center justify-between">
-                                <h4 className="font-medium">Content Preview</h4>
+                                <h4 className="font-medium">Generated Successfully</h4>
                                 <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setPreviewModal({ open: true, content: status.content!, filename: file.filename })}
+                                  >
+                                    <FileText className="w-4 h-4 mr-1" />
+                                    Preview
+                                  </Button>
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -397,9 +474,6 @@ export default function GenerateDocsClient({ projectId }: GenerateDocsClientProp
                                     Download
                                   </Button>
                                 </div>
-                              </div>
-                              <div className="bg-muted p-3 rounded-md max-h-40 overflow-y-auto">
-                                <pre className="text-sm whitespace-pre-wrap">{status.content}</pre>
                               </div>
                             </div>
                           )}
@@ -467,6 +541,7 @@ export default function GenerateDocsClient({ projectId }: GenerateDocsClientProp
                       </Card>
                     );
                   })}
+                  </div>
                 </div>
               ) : (
                 <div className="text-center py-8">
@@ -490,6 +565,44 @@ export default function GenerateDocsClient({ projectId }: GenerateDocsClientProp
             <DialogTitle>Error</DialogTitle>
             <DialogDescription>{errorDialog.message}</DialogDescription>
           </DialogHeader>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={previewModal.open} onOpenChange={(open) => setPreviewModal({ open, content: '', filename: '' })}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              Preview: {previewModal.filename}
+            </DialogTitle>
+            <DialogDescription>
+              Preview the generated content for {previewModal.filename}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4">
+            <div className="bg-muted p-4 rounded-md max-h-[60vh] overflow-y-auto">
+              <pre className="text-sm whitespace-pre-wrap font-mono leading-relaxed">
+                {previewModal.content}
+              </pre>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setPreviewModal({ open: false, content: '', filename: '' })}
+            >
+              Close
+            </Button>
+            <Button
+              onClick={() => {
+                downloadFile(previewModal.filename, previewModal.content);
+                setPreviewModal({ open: false, content: '', filename: '' });
+              }}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Download
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

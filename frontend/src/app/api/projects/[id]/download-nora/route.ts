@@ -24,30 +24,40 @@ export async function POST(
     }
     zip.file('PRD.md', prdContent);
     
-    // Read the rule templates and add them with .mdc extension
-    const generateRulePath = path.join(process.cwd(), '..', 'rule_templates', 'generate.md');
+    // Read the workflow rule template and add it with .mdc extension
     const workflowRulePath = path.join(process.cwd(), '..', 'rule_templates', 'workflow.md');
-    
-    if (!fs.existsSync(generateRulePath)) {
-      return NextResponse.json(
-        { error: `Generate rule template not found at: ${generateRulePath}` },
-        { status: 404 }
-      );
-    }
     
     if (!fs.existsSync(workflowRulePath)) {
       return NextResponse.json(
-        { error: `Workflow rule template not found at: ${workflowRulePath}` },
+        { error: 'Workflow rule template not found' },
         { status: 404 }
       );
     }
     
-    const generateRuleContent = fs.readFileSync(generateRulePath, 'utf-8');
     const workflowRuleContent = fs.readFileSync(workflowRulePath, 'utf-8');
     
-    // Add rule files to .cursor/rules/ directory in zip
-    zip.file('.cursor/rules/generate.mdc', generateRuleContent);
-    zip.file('.cursor/rules/workflow.mdc', workflowRuleContent);
+    // Add workflow rule to .nora/rules/ directory in zip
+    zip.file('.nora/rules/workflow.mdc', workflowRuleContent);
+    
+    // Read all generated Nora documentation files
+    const noraDocsDir = path.join(process.cwd(), 'storage', 'projects', id, 'downloads', 'nora', 'docs');
+    
+    if (fs.existsSync(noraDocsDir)) {
+      const docFiles = fs.readdirSync(noraDocsDir);
+      
+      for (const filename of docFiles) {
+        // Skip .DS_Store and other system files
+        if (filename === '.DS_Store' || filename.startsWith('.')) {
+          continue;
+        }
+        
+        if (filename.endsWith('.md')) {
+          const filePath = path.join(noraDocsDir, filename);
+          const content = fs.readFileSync(filePath, 'utf-8');
+          zip.file(`docs/${filename}`, content);
+        }
+      }
+    }
     
     // Generate the zip file
     const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
@@ -56,14 +66,14 @@ export async function POST(
     return new NextResponse(zipBuffer, {
       headers: {
         'Content-Type': 'application/zip',
-        'Content-Disposition': `attachment; filename="cursor-project-${id}.zip"`,
+        'Content-Disposition': `attachment; filename="nora-project-${id}.zip"`,
       },
     });
 
   } catch (error) {
-    console.error('Error creating Cursor download:', error);
+    console.error('Error creating Nora download:', error);
     return NextResponse.json(
-      { error: 'Failed to create Cursor download package' },
+      { error: 'Failed to create Nora download package' },
       { status: 500 }
     );
   }

@@ -378,5 +378,25 @@ export const apiStorage = {
       console.error('Error downloading Cursor package:', error);
       throw error;
     }
+  },
+
+  // Download Nora package
+  async downloadNoraPackage(projectId: string): Promise<Blob> {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/download-nora`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create Nora download package');
+      }
+      
+      return response.blob();
+    } catch (error) {
+      console.error('Error downloading Nora package:', error);
+      throw error;
+    }
   }
 }; 

@@ -11,6 +11,8 @@ export async function POST(
     const { id, filename } = await params;
     const { ide } = await request.json();
     
+    console.log('Generating doc file:', { id, filename, ide });
+    
     // Validate IDE
     if (ide !== 'nora') {
       return NextResponse.json(
@@ -20,11 +22,12 @@ export async function POST(
     }
     
     // Read the system prompt
-    const promptPath = path.join(process.cwd(), 'prompts', 'generate-docs.md');
+    const promptPath = path.join(process.cwd(), '..', 'prompts', 'generate-docs.md');
     const systemPrompt = fs.readFileSync(promptPath, 'utf-8');
     
     // Read the refined PRD
     const prdContent = await fileStorage.getRefinedPRDContent(id);
+    console.log('PRD content length:', prdContent?.length || 0);
     if (!prdContent) {
       return NextResponse.json(
         { error: 'Refined PRD not found. Please complete the refinement process first.' },
@@ -46,6 +49,7 @@ ${JSON.stringify(answers, null, 2)}
 Please generate the ${filename} file for Nora IDE based on the above PRD and project context.
 `;
 
+    console.log('Calling OpenAI API...');
     // Call OpenAI API
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -70,6 +74,7 @@ Please generate the ${filename} file for Nora IDE based on the above PRD and pro
       })
     });
 
+    console.log('OpenAI response status:', response.status);
     if (!response.ok) {
       const errorData = await response.json();
       console.error('OpenAI API error:', errorData);

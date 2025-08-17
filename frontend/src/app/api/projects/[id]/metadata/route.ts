@@ -3,10 +3,10 @@ import { fileStorage } from '@/lib/file-storage';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const projectId = params.id;
+    const { id: projectId } = await params;
     const metadata = fileStorage.getProjectMetadata(projectId);
     
     if (!metadata) {
@@ -22,10 +22,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const projectId = params.id;
+    const { id: projectId } = await params;
     const metadata = await request.json();
     
     fileStorage.saveProjectMetadata(metadata);
